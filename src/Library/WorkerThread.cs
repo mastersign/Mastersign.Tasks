@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace Mastersign.Tasks
 {
-    internal class WorkerThread : IDisposable
+    public class WorkerThread : IDisposable
     {
         private TaskQueue _queue;
         private IWorker _worker;
@@ -43,10 +43,10 @@ namespace Mastersign.Tasks
         }
 
         private bool _busy;
-        private bool Busy
+        public bool Busy
         {
             get => _busy;
-            set
+            private set
             {
                 if (_busy == value) return;
                 _busy = value;

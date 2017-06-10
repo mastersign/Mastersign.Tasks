@@ -36,6 +36,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CancelationToken.cs" />
+    <Compile Include="DependencyFailedException.cs" />
     <Compile Include="ITask.cs" />
     <Compile Include="IWorker.cs" />
     <Compile Include="IWorkerFactory.cs" />

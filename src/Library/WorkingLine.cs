@@ -19,7 +19,7 @@ namespace Mastersign.Tasks
         private readonly List<WorkerThread> _threads = new List<WorkerThread>();
         private readonly ManualResetEvent _busyEvent = new ManualResetEvent(true);
 
-        public WorkerThread[] WorkerThreads => _threads.ToArray();
+        public ICollection<WorkerThread> WorkerThreads => _threads.ToArray();
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -131,7 +131,7 @@ namespace Mastersign.Tasks
             }
         }
 
-        public void WaitForFinish()
+        public void WaitForEnd()
         {
             _busyEvent.WaitOne();
         }

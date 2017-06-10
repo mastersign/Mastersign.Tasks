@@ -119,14 +119,14 @@ namespace Mastersign.Tasks
                     }
                     catch (Exception e)
                     {
-                        if (task.State == TaskState.InProgress || task.State == TaskState.CleaningUp)
-                        {
-                            task.UpdateState(TaskState.Failed, e);
-                        }
                         workerError = e;
                     }
                     if (workerError != null)
                     {
+                        if (task.State == TaskState.InProgress || task.State == TaskState.CleaningUp)
+                        {
+                            task.UpdateState(TaskState.Failed, workerError);
+                        }
                         try
                         {
                             OnWorkerError(workerError);
@@ -136,10 +136,11 @@ namespace Mastersign.Tasks
                             // ignore exceptions during event handling
                         }
                     }
-                    if (_cancelationToken.IsCanceled &&
-                        task.State == TaskState.InProgress || task.State == TaskState.CleaningUp)
+                    else if (task.State == TaskState.InProgress || task.State == TaskState.CleaningUp)
                     {
-                        task.UpdateState(TaskState.Canceled);
+                        task.UpdateState(_cancelationToken.IsCanceled
+                            ? TaskState.Canceled
+                            : TaskState.Succeeded);
                     }
                 }
                 else

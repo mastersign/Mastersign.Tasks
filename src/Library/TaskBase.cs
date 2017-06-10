@@ -197,7 +197,7 @@ namespace Mastersign.Tasks
         public void UpdateState(TaskState newState, Exception error)
         {
             Error = error;
-            ErrorMessage = error.Message;
+            ErrorMessage = error?.Message;
             State = newState;
         }
 

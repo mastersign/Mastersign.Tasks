@@ -38,12 +38,17 @@ namespace Mastersign.Tasks
             }
         }
 
+        private readonly object _busyCountLock = new object();
+
         private void ThreadWorkerBusyChangedHandler(object sender, EventArgs e)
         {
             var count = 0;
-            foreach (var thread in _threads)
+            lock (_busyCountLock)
             {
-                if (thread.Busy) count++;
+                foreach (var thread in _threads)
+                {
+                    if (thread.Busy) count++;
+                }
             }
             BusyWorkerCount = count;
         }
@@ -151,6 +156,7 @@ namespace Mastersign.Tasks
             if (IsDisposed) return;
             IsDisposed = true;
 
+            _queue.Dispose();
             foreach (var thread in _threads)
             {
                 thread.Dispose();

@@ -7,11 +7,15 @@ using System.Threading;
 
 namespace Mastersign.Tasks
 {
-    public class TaskManager : IDisposable
+    public class TaskManager : IDisposable, INotifyPropertyChanged
     {
         private readonly List<ITask> _tasks = new List<ITask>();
         private readonly List<TaskWatcher> _taskWatchers = new List<TaskWatcher>();
         private readonly Dictionary<string, WorkingLine> _workingLines = new Dictionary<string, WorkingLine>();
+
+        private readonly ManualResetEvent _busyEvent = new ManualResetEvent(true);
+
+        public event PropertyChangedEventHandler PropertyChanged;
 
         private bool _isRunning;
         public bool IsRunning
@@ -22,6 +26,11 @@ namespace Mastersign.Tasks
                 if (_isRunning == value) return;
                 _isRunning = value;
                 OnIsRunningChanged();
+
+                if (_isRunning)
+                    _busyEvent.Reset();
+                else
+                    _busyEvent.Set();
             }
         }
 
@@ -32,11 +41,12 @@ namespace Mastersign.Tasks
         private void OnIsRunningChanged()
         {
             IsRunningChanged?.Invoke(this, EventArgs.Empty);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRunning)));
         }
 
         public void AddTask(ITask task)
         {
-            if (_isRunning) throw new InvalidOperationException("Tasks can not be added after the manager was started.");
+            if (IsRunning) throw new InvalidOperationException("Tasks can not be added while the manager is running.");
             _tasks.Add(task);
         }
 
@@ -45,12 +55,55 @@ namespace Mastersign.Tasks
             foreach (var task in tasks) AddTask(task);
         }
 
+        public void ClearTasks()
+        {
+            if (IsRunning) throw new InvalidOperationException("Tasks can not be removed while the manager is running.");
+            _tasks.Clear();
+        }
+
         public void AddWorkingLine(string tag, IWorkerFactory factory, int worker, ThreadPriority threadPriority)
         {
-            if (_isRunning) throw new InvalidOperationException("Working lines can not be added after the manager was started.");
+            if (IsRunning) throw new InvalidOperationException("Working lines can not be added after the manager was started.");
             if (_workingLines.ContainsKey(tag)) throw new ArgumentException("The given tag is already in use for another working line.", nameof(tag));
             var workingLine = new WorkingLine(tag, factory, worker, threadPriority);
+            workingLine.BusyChanged += WorkingLineBusyChanged;
+
             _workingLines[tag] = workingLine;
+        }
+
+        private readonly object _workingLineBusyCountLock = new object();
+
+        private void WorkingLineBusyChanged(object sender, EventArgs e)
+        {
+            var count = 0;
+            lock(_workingLineBusyCountLock)
+            {
+                foreach (var workingLine in _workingLines.Values)
+                {
+                    if (workingLine.Busy) count++;
+                }
+            }
+            BusyWorkingLinesCount = count;
+        }
+
+        private int _busyWorkingLinesCount;
+        public int BusyWorkingLinesCount
+        {
+            get => _busyWorkingLinesCount;
+            set
+            {
+                if (_busyWorkingLinesCount == value) return;
+                _busyWorkingLinesCount = value;
+                OnBusyWorkingLinesCountChanged();
+            }
+        }
+
+        public event EventHandler BusyWorkingLinesCountChanged;
+
+        private void OnBusyWorkingLinesCountChanged()
+        {
+            BusyWorkingLinesCountChanged?.Invoke(this, EventArgs.Empty);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusyWorkingLinesCount)));
         }
 
         public ICollection<WorkingLine> WorkingLines => _workingLines.Values;
@@ -58,13 +111,22 @@ namespace Mastersign.Tasks
         public void Start()
         {
             if (IsDisposed) throw new ObjectDisposedException(nameof(TaskManager));
-            if (_isRunning) throw new InvalidOperationException("The manager was already started.");
-            _isRunning = true;
+            if (IsRunning) throw new InvalidOperationException("The manager was already started.");
+
+            _isWaitingForTheEnd = false;
+            IsRunning = true;
+            if (_tasks.Count == 0)
+            {
+                IsRunning = false;
+                return;
+            }
+
             foreach (var workingLine in _workingLines.Values)
             {
                 workingLine.Start();
             }
 
+            _taskWatchers.Clear();
             foreach (var t in _tasks)
             {
                 if (!_workingLines.ContainsKey(t.QueueTag))
@@ -91,13 +153,13 @@ namespace Mastersign.Tasks
         {
             var taskWatcher = (TaskWatcher)sender;
 
-            Debug.Assert(taskWatcher.IsReady, 
+            Debug.Assert(taskWatcher.IsReady,
                 "A task watcher was reported as ready, but it is not.");
             Debug.Assert(taskWatcher.Task.State == TaskState.Waiting,
                 "A task watcher reported a non waiting task as ready.");
 
             taskWatcher.IsReadyChanged -= TaskIsReadyChangedHandler;
-            lock(_taskWatchers)
+            lock (_taskWatchers)
             {
                 _taskWatchers.Remove(taskWatcher);
                 if (_taskWatchers.Count == 0)
@@ -128,10 +190,7 @@ namespace Mastersign.Tasks
 
         public void WaitForEnd()
         {
-            foreach (var workingLine in _workingLines.Values)
-            {
-                workingLine.WaitForEnd();
-            }
+            _busyEvent.WaitOne();
         }
 
         public bool IsDisposed { get; private set; }

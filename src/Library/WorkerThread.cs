@@ -12,8 +12,6 @@ namespace Mastersign.Tasks
         private string _label;
         private Thread _thread;
         private ManualResetEvent _aliveEvent = new ManualResetEvent(true);
-        private AutoResetEvent _newTaskEvent = new AutoResetEvent(false);
-        private bool _stopped;
         private CancelationToken _cancelationToken;
 
         private ThreadPriority ThreadPriority { get; set; }
@@ -22,15 +20,8 @@ namespace Mastersign.Tasks
         {
             _queue = queue ?? throw new ArgumentNullException(nameof(queue));
             _worker = worker ?? throw new ArgumentNullException(nameof(worker));
-            _queue.NewTask += TaskQueueNewTaskHandler;
-            if (!_queue.IsEmpty) _newTaskEvent.Set();
             _label = label;
             ThreadPriority = ThreadPriority.Normal;
-        }
-
-        private void TaskQueueNewTaskHandler(object sender, EventArgs e)
-        {
-            _newTaskEvent.Set();
         }
 
         public bool IsAlive => _thread != null;
@@ -86,7 +77,6 @@ namespace Mastersign.Tasks
         {
             if (IsDisposed) throw new ObjectDisposedException(Name);
             if (IsAlive) throw new InvalidOperationException("The thread is already started.");
-            _stopped = false;
             _cancelationToken = new CancelationToken();
             _thread = new Thread(ThreadLoop);
             _thread.Name = Name;
@@ -99,9 +89,9 @@ namespace Mastersign.Tasks
         private void ThreadLoop()
         {
             ITask task = null;
-            while (!_stopped && !_cancelationToken.IsCanceled)
+            while (!_cancelationToken.IsCanceled && !_queue.IsDisposed && !IsDisposed)
             {
-                if (_queue.TryDequeue(ref task))
+                while (_queue.TryDequeue(ref task))
                 {
                     var taskState = task.State;
                     if (taskState != TaskState.Waiting)
@@ -143,17 +133,10 @@ namespace Mastersign.Tasks
                             : TaskState.Succeeded);
                     }
                 }
-                else
-                {
-                    CurrentTask = null;
-                    Busy = false;
-                }
-                if (_stopped || _cancelationToken.IsCanceled) break;
-                try
-                {
-                    _newTaskEvent.WaitOne();
-                }
-                catch (ObjectDisposedException) { }
+                CurrentTask = null;
+                Busy = false;
+                if (_cancelationToken.IsCanceled || IsDisposed || _queue.IsDisposed) break;
+                _queue.WaitForNewItem();
             }
             CurrentTask = null;
             Busy = false;
@@ -177,26 +160,13 @@ namespace Mastersign.Tasks
             WorkerError?.Invoke(this, new WorkerErrorEventArgs(e));
         }
 
-        public void Stop()
-        {
-            if (_stopped) return;
-            _stopped = true;
-            try
-            {
-                _newTaskEvent.Set();
-            }
-            catch (ObjectDisposedException) { }
-        }
-
         public void Cancel()
         {
             _cancelationToken?.Cancel();
-            Stop();
         }
 
         public void WaitForDeath()
         {
-            Stop();
             try
             {
                 _aliveEvent.WaitOne();
@@ -210,10 +180,8 @@ namespace Mastersign.Tasks
         {
             if (IsDisposed) return;
             IsDisposed = true;
-            _queue.NewTask -= TaskQueueNewTaskHandler;
             WaitForDeath();
             _cancelationToken = null;
-            _newTaskEvent.Close();
             _aliveEvent.Close();
         }
     }

@@ -7,7 +7,7 @@ namespace Mastersign.Tasks
 {
     internal class EventLoop : IDisposable
     {
-        private ConcurrentDispatcher<ActionHandle> _queue = new ConcurrentDispatcher<ActionHandle>();
+        private ConcurrentDispatcher<DelegateCall> _queue = new ConcurrentDispatcher<DelegateCall>();
         private Thread _loopThread;
 
         public event EventHandler<UnhandledExceptionEventArgs> UnhandledException;
@@ -18,14 +18,19 @@ namespace Mastersign.Tasks
             _loopThread.Start();
         }
 
+        public void Push(Delegate @delegate, params object[] parameter)
+        {
+            _queue.Enqueue(new DelegateCall(@delegate, parameter));
+        }
+
         private void Loop()
         {
-            ActionHandle action = null;
+            DelegateCall action = null;
             while (_queue.Dequeue(ref action))
             {
                 try
                 {
-                    action?.Invoke();
+                    action.Delegate.DynamicInvoke(action.Parameter);
                 }
                 catch (Exception e)
                 {
@@ -54,6 +59,19 @@ namespace Mastersign.Tasks
             IsDisposed = true;
             _queue.Dispose();
             _loopThread.Join();
+        }
+
+        private class DelegateCall
+        {
+            public Delegate Delegate { get; private set; }
+
+            public object[] Parameter { get; private set; }
+
+            public DelegateCall(Delegate @delegate, params object[] parameter)
+            {
+                Delegate = @delegate;
+                Parameter = parameter;
+            }
         }
     }
 }

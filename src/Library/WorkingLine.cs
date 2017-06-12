@@ -17,6 +17,7 @@ namespace Mastersign.Tasks
 
         private readonly TaskQueue _queue = new TaskQueue();
         private readonly List<WorkerThread> _threads = new List<WorkerThread>();
+        private readonly Dictionary<WorkerThread, bool> _threadBusy = new Dictionary<WorkerThread, bool>();
         private readonly ManualResetEvent _busyEvent = new ManualResetEvent(true);
 
         public ICollection<WorkerThread> WorkerThreads => _threads.ToArray();
@@ -33,25 +34,80 @@ namespace Mastersign.Tasks
             for (int i = 0; i < worker; i++)
             {
                 var thread = new WorkerThread(_queue, factory.Create(), $"{tag}_{i}");
+                _threadBusy[thread] = false;
                 _threads.Add(thread);
                 thread.BusyChanged += ThreadWorkerBusyChangedHandler;
+                thread.TaskRejected += ThreadWorkerTaskRejectedHandler;
+                thread.WorkerError += ThreadWorkerErrorHandler;
+                thread.TaskBegin += ThreadWorkerTaskBeginHandler;
+                thread.TaskEnd += ThreadWorkerTaskEndHandler;
             }
         }
 
-        private readonly object _busyCountLock = new object();
+        private int _busyWorkerCount;
+
+        public int BusyWorkerCount
+        {
+            get => _busyWorkerCount;
+            set
+            {
+                if (_busyWorkerCount == value) return;
+                _busyWorkerCount = value;
+                Busy = _busyWorkerCount > 0;
+                OnBusyWorkerCountChanged();
+            }
+        }
+
+        public event EventHandler BusyWorkerCountChanged;
+
+        private void OnBusyWorkerCountChanged()
+        {
+            BusyWorkerCountChanged?.Invoke(this, EventArgs.Empty);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusyWorkerCount)));
+        }
 
         private void ThreadWorkerBusyChangedHandler(object sender, EventArgs e)
         {
+            var thread = (WorkerThread)sender;
             var count = 0;
-            lock (_busyCountLock)
+            lock (_threadBusy)
             {
-                foreach (var thread in _threads)
+                _threadBusy[thread] = thread.Busy;
+                foreach (var busy in _threadBusy.Values)
                 {
-                    if (thread.Busy) count++;
+                    if (busy) count++;
                 }
             }
             BusyWorkerCount = count;
         }
+
+        private void ThreadWorkerTaskRejectedHandler(object sender, TaskRejectedEventArgs e)
+        {
+            TaskRejected?.Invoke(this, e);
+        }
+
+        public event EventHandler<TaskRejectedEventArgs> TaskRejected;
+
+        private void ThreadWorkerErrorHandler(object sender, WorkerErrorEventArgs e)
+        {
+            WorkerError?.Invoke(this, e);
+        }
+
+        public event EventHandler<WorkerErrorEventArgs> WorkerError;
+
+        private void ThreadWorkerTaskBeginHandler(object sender, TaskEventArgs e)
+        {
+            TaskBegin?.Invoke(this, e);
+        }
+
+        public event EventHandler<TaskEventArgs> TaskBegin;
+
+        private void ThreadWorkerTaskEndHandler(object sender, TaskEventArgs e)
+        {
+            TaskEnd?.Invoke(this, e);
+        }
+
+        public event EventHandler<TaskEventArgs> TaskEnd;
 
         private bool _busy;
         public bool Busy
@@ -76,27 +132,6 @@ namespace Mastersign.Tasks
         {
             BusyChanged?.Invoke(this, EventArgs.Empty);
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Busy)));
-        }
-
-        private int _busyWorkerCount;
-        public int BusyWorkerCount
-        {
-            get => _busyWorkerCount;
-            set
-            {
-                if (_busyWorkerCount == value) return;
-                _busyWorkerCount = value;
-                Busy = _busyWorkerCount > 0;
-                OnBusyWorkerCountChanged();
-            }
-        }
-
-        public event EventHandler BusyWorkerCountChanged;
-
-        private void OnBusyWorkerCountChanged()
-        {
-            BusyWorkerCountChanged?.Invoke(this, EventArgs.Empty);
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusyWorkerCount)));
         }
 
         public ITask[] CurrentTasks

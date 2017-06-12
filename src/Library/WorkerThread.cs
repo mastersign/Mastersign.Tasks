@@ -33,6 +33,20 @@ namespace Mastersign.Tasks
             IsAliveChanged?.Invoke(this, EventArgs.Empty);
         }
 
+        public event EventHandler<TaskEventArgs> TaskBegin;
+
+        private void OnTaskBegin(ITask task)
+        {
+            TaskBegin?.Invoke(this, new TaskEventArgs(task));
+        }
+
+        public event EventHandler<TaskEventArgs> TaskEnd;
+
+        private void OnTaskEnd(ITask task)
+        {
+            TaskEnd?.Invoke(this, new TaskEventArgs(task));
+        }
+
         private bool _busy;
         public bool Busy
         {
@@ -102,6 +116,7 @@ namespace Mastersign.Tasks
                     CurrentTask = task;
                     Busy = true;
                     task.UpdateState(TaskState.InProgress);
+                    OnTaskBegin(task);
                     Exception workerError = null;
                     try
                     {
@@ -132,6 +147,7 @@ namespace Mastersign.Tasks
                             ? TaskState.Canceled
                             : TaskState.Succeeded);
                     }
+                    OnTaskEnd(task);
                 }
                 CurrentTask = null;
                 Busy = false;

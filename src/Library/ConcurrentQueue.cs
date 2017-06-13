@@ -21,13 +21,13 @@ namespace Mastersign.Tasks
             }
         }
 
-        public void Enqueue(T task)
+        public void Enqueue(T item)
         {
             var notify = false;
             lock (items)
             {
                 if (items.Count == 0) notify = true;
-                items.Enqueue(task);
+                items.Enqueue(item);
             }
             if (notify)
             {

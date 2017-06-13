@@ -9,19 +9,10 @@ namespace Mastersign.Tasks
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
-        protected TaskBase(string name, string target, string description, string queueTag)
+        protected TaskBase(string queueTag)
         {
-            Name = name;
-            Target = target;
-            Description = description;
             QueueTag = queueTag;
         }
-
-        public string Name { get; private set; }
-
-        public string Target { get; private set; }
-
-        public string Description { get; private set; }
 
         public string QueueTag { get; private set; }
 

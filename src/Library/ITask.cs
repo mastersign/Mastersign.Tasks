@@ -7,12 +7,6 @@ namespace Mastersign.Tasks
 {
     public interface ITask : INotifyPropertyChanged
     {
-        string Name { get; }
-
-        string Target { get; }
-
-        string Description { get; }
-
         string QueueTag { get; }
 
         ITask[] Dependencies { get; }

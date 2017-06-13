@@ -5,3 +5,4 @@ Thumbs.db
 bin/
 obj/
 packages/
+/src/TestResults/

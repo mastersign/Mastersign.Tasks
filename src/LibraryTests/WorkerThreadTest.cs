@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Threading;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Mastersign.Tasks.Test.Monitors;
+using static Mastersign.Tasks.Test.Monitors.EventRecordPredicates;
+using static Mastersign.Tasks.Test.Waiter;
 
 namespace Mastersign.Tasks.Test
 {
@@ -18,30 +21,27 @@ namespace Mastersign.Tasks.Test
             var q = new TaskQueue();
             var w = new TestWorker("Test");
             var wt = new WorkerThread(q, w, NAME);
+            var wtMon = new EventMonitor<WorkerThread>(wt);
 
             Assert.IsTrue(wt.Name.EndsWith(NAME));
             Assert.IsFalse(wt.IsDisposed);
             Assert.IsFalse(wt.IsAlive);
-
-            var isAliveEventCounter = 0;
-            var isAliveEventSender = default(object);
-            wt.IsAliveChanged += (sender, e) =>
-            {
-                isAliveEventCounter++;
-                isAliveEventSender = sender;
-            };
+            Assert.IsFalse(wt.Busy);
 
             wt.Start();
             Assert.IsTrue(wt.IsAlive);
-            Assert.AreEqual(1, isAliveEventCounter);
-            Assert.AreEqual(wt, isAliveEventSender);
+            var isAliveHistory = wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)));
+            isAliveHistory.AssertSender(wt);
+            isAliveHistory.AssertPropertyValues(true);
 
             q.Dispose();
             wt.Dispose();
             Assert.IsTrue(wt.IsDisposed);
-            Assert.AreEqual(2, isAliveEventCounter);
-            Assert.AreEqual(wt, isAliveEventSender);
+            isAliveHistory = wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)));
+            isAliveHistory.AssertSender(wt);
+            isAliveHistory.AssertPropertyValues(true, false);
             Assert.IsFalse(wt.IsAlive);
+            Assert.IsFalse(wt.Busy);
         }
 
         [TestMethod]
@@ -50,66 +50,59 @@ namespace Mastersign.Tasks.Test
             var q = new TaskQueue();
             var w = new TestWorker("Test");
             var wt = new WorkerThread(q, w, "Test");
-
-            var taskBeginCounter = 0;
-            var taskBeginSender = default(object);
-            var taskEndCounter = 0;
-            var taskEndSender = default(object);
-            var busyChangedCounter = 0;
-            var busyChangedSender = default(object);
-
-            wt.TaskBegin += (sender, e) => {
-                taskBeginCounter++;
-                taskBeginSender = sender;
-            };
-            wt.TaskEnd += (sender, e) =>
-            {
-                taskEndCounter++;
-                taskEndSender = sender;
-            };
-            wt.BusyChanged += (sender, e) =>
-            {
-                busyChangedCounter++;
-                busyChangedSender = sender;
-            };
-
-            wt.Start();
-            Assert.AreEqual(0, taskBeginCounter);
-            Assert.AreEqual(0, taskEndCounter);
-            Assert.AreEqual(0, busyChangedCounter);
+            var wtMon = new EventMonitor<WorkerThread>(wt);
 
             var task = new TestTask("single", "test");
-            var taskStates = new List<TaskState>();
-            task.StateChanged += (sender, e) =>
-            {
-                taskStates.Add(((ITask)sender).State);
-            };
+            var taskMon = new EventMonitor<TestTask>(task);
 
             q.Enqueue(task);
 
-            while (taskEndCounter == 0)
-            {
-                Thread.Sleep(10);
-            }
+            Assert.IsFalse(q.IsEmpty);
+            Assert.IsFalse(wt.IsAlive);
+            Assert.IsFalse(wt.Busy);
+
+            wt.Start();
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+                .AssertPropertyValues(true);
+
+            WaitFor(() => task.State == TaskState.Succeeded, 1000);
 
             Assert.IsTrue(q.IsEmpty);
-            Assert.AreEqual(1, taskBeginCounter);
-            Assert.AreEqual(wt, taskBeginSender);
-            Assert.AreEqual(1, taskEndCounter);
-            Assert.AreEqual(wt, taskEndSender);
-            Assert.AreEqual(2, busyChangedCounter);
-            Assert.AreEqual(wt, busyChangedSender);
+            var wtHist = wtMon.History;
+            wtHist.AssertSender(wt);
+            wtHist.AssertEventNames(
+                nameof(wt.IsAliveChanged),
+                nameof(wt.CurrentTaskChanged),
+                nameof(wt.BusyChanged),
+                nameof(wt.TaskBegin),
+                nameof(wt.TaskEnd),
+                nameof(wt.CurrentTaskChanged),
+                nameof(wt.BusyChanged));
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+                .AssertPropertyValues(true);
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.Busy)))
+                .AssertPropertyValues(true, false);
+            wtMon.FilterHistory(ByPropertyChanges<ITask>(nameof(wt.CurrentTask)))
+                .AssertPropertyValues(task, null);
 
-            CollectionAssert.AreEqual(new[]
-            {
+            var taskHist = taskMon.History;
+            taskHist.AssertSender(task);
+            var taskStateHist = taskMon.FilterHistory(ByPropertyChanges<TaskState>(nameof(task.State)));
+            taskStateHist.AssertPropertyValues(
                 TaskState.InProgress,
                 TaskState.CleaningUp,
-                TaskState.Succeeded,
-            }, taskStates);
-            Assert.AreEqual(TaskState.Succeeded, task.State);
+                TaskState.Succeeded
+            );
+            var taskProgressHist = taskMon.FilterHistory(ByPropertyChanges<float>(nameof(task.Progress)));
+            Assert.IsTrue(taskProgressHist.Count > 0);
+            Assert.AreEqual(0f, taskProgressHist.First.GetNewValue<float>());
+            Assert.AreEqual(1f, taskProgressHist.Last.GetNewValue<float>());
 
+            wtMon.ClearHistory();
             q.Dispose();
             wt.Dispose();
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+                .AssertPropertyValues(false);
         }
     }
 }

@@ -17,15 +17,17 @@ namespace Mastersign.Tasks
         public string QueueTag { get; private set; }
 
         private float _progress = 0f;
+        private bool progressSend = false;
         public float Progress
         {
             get => _progress;
             set
             {
                 var newProgress = Math.Max(0f, Math.Min(1f, value));
-                if (Math.Abs(_progress - newProgress) < float.Epsilon) return;
+                if (Math.Abs(_progress - newProgress) < float.Epsilon && progressSend) return;
                 _progress = newProgress;
                 OnProgressChanged();
+                progressSend = true;
             }
         }
 

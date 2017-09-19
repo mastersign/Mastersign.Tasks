@@ -18,6 +18,7 @@ namespace Mastersign.Tasks.Test
         public void Process(ITask task, CancelationToken cancelationToken)
         {
             var t = (TaskBase)task;
+            t.UpdateProgress("starting", 0f);
             for (int i = 0; i < 1000; i++)
             {
                 if (cancelationToken.IsCanceled) break;

@@ -23,10 +23,9 @@ namespace Mastersign.Tasks.Test
             return true;
         }
 
-        private static Random rand = new Random();
-
         public static int Do(int amount = 50)
         {
+            var rand = new Random();
             var x = 0;
             for (int i = 0; i < amount; i++)
             {
@@ -40,6 +39,6 @@ namespace Mastersign.Tasks.Test
             => Do(50);
 
         public static int DoRandomAmount()
-            => Do(rand.Next(1, 100));
+            => Do((new Random()).Next(1, 100));
     }
 }

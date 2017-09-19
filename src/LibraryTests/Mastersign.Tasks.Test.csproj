@@ -44,6 +44,11 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Monitoring\EventHistory.cs" />
+    <Compile Include="Monitoring\EventMonitor.cs" />
+    <Compile Include="Monitoring\EventRecord.cs" />
+    <Compile Include="Monitoring\EventRecordPredicates.cs" />
+    <Compile Include="Monitoring\ValueUpdate.cs" />
     <Compile Include="TaskBaseTest.cs" />
     <Compile Include="ConcurrentDispatcherTest.cs" />
     <Compile Include="HardWork.cs" />

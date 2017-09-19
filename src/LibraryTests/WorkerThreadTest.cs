@@ -104,5 +104,84 @@ namespace Mastersign.Tasks.Test
             wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
                 .AssertPropertyValues(false);
         }
+
+        [TestMethod]
+        public void MultiTaskTest()
+        {
+            var q = new TaskQueue();
+            var w = new TestWorker("Test");
+            var wt = new WorkerThread(q, w, "Test");
+            var wtMon = new EventMonitor<WorkerThread>(wt);
+
+            var tasks = new[] {
+                new TestTask("multi 1", "test"),
+                new TestTask("multi 2", "test"),
+                new TestTask("multi 3", "test")
+            };
+            var taskMons = tasks.Select(t => new EventMonitor<TestTask>(t)).ToArray();
+
+            Assert.IsTrue(q.IsEmpty);
+            Assert.IsFalse(wt.IsAlive);
+            Assert.IsFalse(wt.Busy);
+
+            wt.Start();
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+                .AssertPropertyValues(true);
+
+            foreach (var task in tasks)
+            {
+                q.Enqueue(task);
+            }
+
+            WaitFor(() => tasks.All(t => t.State == TaskState.Succeeded), 10000);
+
+            Assert.IsTrue(q.IsEmpty);
+            var wtHist = wtMon.History;
+            wtHist.AssertSender(wt);
+            wtHist.AssertEventNames(
+                nameof(wt.IsAliveChanged),
+                nameof(wt.CurrentTaskChanged),
+                nameof(wt.BusyChanged),
+                nameof(wt.TaskBegin),
+                nameof(wt.TaskEnd),
+                nameof(wt.CurrentTaskChanged),
+                nameof(wt.TaskBegin),
+                nameof(wt.TaskEnd),
+                nameof(wt.CurrentTaskChanged),
+                nameof(wt.TaskBegin),
+                nameof(wt.TaskEnd),
+                nameof(wt.CurrentTaskChanged),
+                nameof(wt.BusyChanged));
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+                .AssertPropertyValues(true);
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.Busy)))
+                .AssertPropertyValues(true, false);
+            wtMon.FilterHistory(ByPropertyChanges<ITask>(nameof(wt.CurrentTask)))
+                .AssertPropertyValues(tasks.Concat(new TestTask[] { null }).ToArray());
+
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                var taskMon = taskMons[i];
+                var task = tasks[i];
+                var taskHist = taskMon.History;
+                taskHist.AssertSender(task);
+                var taskStateHist = taskMon.FilterHistory(ByPropertyChanges<TaskState>(nameof(task.State)));
+                taskStateHist.AssertPropertyValues(
+                    TaskState.InProgress,
+                    TaskState.CleaningUp,
+                    TaskState.Succeeded
+                );
+                var taskProgressHist = taskMon.FilterHistory(ByPropertyChanges<float>(nameof(task.Progress)));
+                Assert.IsTrue(taskProgressHist.Count > 0);
+                Assert.AreEqual(0f, taskProgressHist.First.GetNewValue<float>());
+                Assert.AreEqual(1f, taskProgressHist.Last.GetNewValue<float>());
+            }
+
+            wtMon.ClearHistory();
+            q.Dispose();
+            wt.Dispose();
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+                .AssertPropertyValues(false);
+        }
     }
 }

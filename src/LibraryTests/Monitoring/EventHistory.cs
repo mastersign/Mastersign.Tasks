@@ -42,7 +42,10 @@ namespace Mastersign.Tasks.Test.Monitors
 
         public void AssertSender(object sender)
         {
-            Assert.IsTrue(EventRecords.All(re => re.Sender == sender), "Not all recored events had the asserted sender.");
+            foreach (var re in EventRecords)
+            {
+                Assert.AreEqual(sender, re.Sender, "The sender of the event is unexpected.");
+            }
         }
 
         #region ICollection Implementation 

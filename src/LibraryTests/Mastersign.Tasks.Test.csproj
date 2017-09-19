@@ -49,6 +49,7 @@
     <Compile Include="HardWork.cs" />
     <Compile Include="TestTask.cs" />
     <Compile Include="TestWorker.cs" />
+    <Compile Include="Waiter.cs" />
     <Compile Include="WorkerThreadTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

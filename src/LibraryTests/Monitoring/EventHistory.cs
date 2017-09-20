@@ -72,11 +72,15 @@ namespace Mastersign.Tasks.Test.Monitors
 
         public bool IsReadOnly => true;
 
+        #region Not Supported
+
         public void Add(EventRecord item) => throw new NotSupportedException();
 
         public bool Remove(EventRecord item) => throw new NotSupportedException();
 
         public void Clear() => throw new NotSupportedException();
+
+        #endregion
 
         #endregion
     }

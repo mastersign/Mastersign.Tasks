@@ -12,6 +12,8 @@ namespace Mastersign.Tasks
         private string _label;
         private Thread _thread;
         private ManualResetEvent _aliveEvent = new ManualResetEvent(true);
+        private ManualResetEvent _startedEvent = new ManualResetEvent(false);
+        private ManualResetEvent _busyEvent = new ManualResetEvent(true);
         private CancelationToken _cancelationToken;
 
         private ThreadPriority ThreadPriority { get; set; }
@@ -56,6 +58,10 @@ namespace Mastersign.Tasks
                 if (_busy == value) return;
                 _busy = value;
                 OnBusyChanged();
+                if (_busy)
+                    _busyEvent.Reset();
+                else
+                    _busyEvent.Set();
             }
         }
 
@@ -113,8 +119,9 @@ namespace Mastersign.Tasks
                         OnTaskRejected(task, taskState);
                         continue;
                     }
-                    CurrentTask = task;
                     Busy = true;
+                    _startedEvent.Set();
+                    CurrentTask = task;
                     task.UpdateState(TaskState.InProgress);
                     OnTaskBegin(task);
                     Exception workerError = null;
@@ -181,11 +188,28 @@ namespace Mastersign.Tasks
             _cancelationToken?.Cancel();
         }
 
-        public void WaitForDeath()
+        public void WaitForEnd(bool mustHaveWorked = true, int timeout = Timeout.Infinite)
         {
             try
             {
-                _aliveEvent.WaitOne();
+                if (mustHaveWorked)
+                {
+                    _startedEvent.WaitOne(timeout);
+                }
+                _busyEvent.WaitOne(timeout);
+            }
+            catch (ObjectDisposedException) { }
+        }
+
+        public void WaitForDeath(bool mustHaveWorked = false, int timeout = Timeout.Infinite)
+        {
+            try
+            {
+                if (mustHaveWorked)
+                {
+                    _startedEvent.WaitOne(timeout);
+                }
+                _aliveEvent.WaitOne(timeout);
             }
             catch (ObjectDisposedException) { }
         }
@@ -199,6 +223,8 @@ namespace Mastersign.Tasks
             WaitForDeath();
             _cancelationToken = null;
             _aliveEvent.Close();
+            _startedEvent.Close();
+            _busyEvent.Close();
         }
     }
 }

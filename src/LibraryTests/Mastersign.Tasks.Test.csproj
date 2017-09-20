@@ -49,6 +49,7 @@
     <Compile Include="Monitoring\EventRecord.cs" />
     <Compile Include="Monitoring\EventRecordPredicates.cs" />
     <Compile Include="Monitoring\ValueUpdate.cs" />
+    <Compile Include="StateAssertions.cs" />
     <Compile Include="TaskBaseTest.cs" />
     <Compile Include="ConcurrentDispatcherTest.cs" />
     <Compile Include="HardWork.cs" />

@@ -10,7 +10,7 @@ namespace Mastersign.Tasks
     {
         public const int MAX_WORKER = 1024;
 
-        public string Tag { get; private set; }
+        public string QueueTag { get; private set; }
         public IWorkerFactory WorkerFactory { get; private set; }
         public int Worker { get; private set; }
         public ThreadPriority ThreadPriority { get; private set; }
@@ -18,23 +18,23 @@ namespace Mastersign.Tasks
         private readonly TaskQueue _queue = new TaskQueue();
         private readonly List<WorkerThread> _threads = new List<WorkerThread>();
         private readonly Dictionary<WorkerThread, bool> _threadBusy = new Dictionary<WorkerThread, bool>();
-        private readonly ManualResetEvent _startedEvent = new ManualResetEvent(false);
+        private readonly ManualResetEvent _workedEvent = new ManualResetEvent(false);
         private readonly ManualResetEvent _busyEvent = new ManualResetEvent(true);
 
         public ICollection<WorkerThread> WorkerThreads => _threads.ToArray();
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public WorkingLine(string tag, IWorkerFactory factory, int worker, ThreadPriority threadPriority)
+        public WorkingLine(string queueTag, IWorkerFactory factory, int worker = 1, ThreadPriority threadPriority = ThreadPriority.Normal)
         {
-            Tag = tag ?? throw new ArgumentNullException(nameof(tag));
+            QueueTag = queueTag ?? throw new ArgumentNullException(nameof(queueTag));
             WorkerFactory = factory ?? throw new ArgumentNullException(nameof(factory));
             Worker = Math.Max(1, Math.Min(MAX_WORKER, worker));
             ThreadPriority = threadPriority;
 
             for (int i = 0; i < worker; i++)
             {
-                var thread = new WorkerThread(_queue, factory.Create(), $"{tag}_{i}");
+                var thread = new WorkerThread(_queue, factory.Create(), $"{queueTag}_{i:0000}");
                 _threadBusy[thread] = false;
                 _threads.Add(thread);
                 thread.BusyChanged += ThreadWorkerBusyChangedHandler;
@@ -82,7 +82,7 @@ namespace Mastersign.Tasks
             BusyWorkerCount = count;
             if (thread.Busy)
             {
-                _startedEvent.Set();
+                    _workedEvent.Set();
             }
         }
 
@@ -160,7 +160,7 @@ namespace Mastersign.Tasks
 
         public void Start()
         {
-            if (IsDisposed) throw new ObjectDisposedException(nameof(WorkingLine) + "_" + Tag);
+            if (IsDisposed) throw new ObjectDisposedException(nameof(WorkingLine) + "_" + QueueTag);
             foreach (var thread in _threads)
             {
                 thread.Start();
@@ -182,7 +182,7 @@ namespace Mastersign.Tasks
             {
                 if (mustHaveWorked)
                 {
-                    _startedEvent.WaitOne(timeout); 
+                    _workedEvent.WaitOne(timeout); 
                 }
                 _busyEvent.WaitOne(timeout);
             }
@@ -210,7 +210,7 @@ namespace Mastersign.Tasks
                 thread.Dispose();
             }
             WaitForDeath();
-            _startedEvent.Close();
+            _workedEvent.Close();
             _busyEvent.Close();
         }
     }

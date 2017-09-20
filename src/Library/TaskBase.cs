@@ -14,7 +14,7 @@ namespace Mastersign.Tasks
             QueueTag = queueTag;
         }
 
-        public string QueueTag { get; private set; }
+        public string QueueTag { get; }
 
         private float _progress = 0f;
         private bool progressSend = false;

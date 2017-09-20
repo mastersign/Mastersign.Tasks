@@ -8,9 +8,9 @@ namespace Mastersign.Tasks.Test
 {
     class TestTask : TaskBase
     {
-        public string Label { get; private set; }
+        public string Label { get; }
 
-        public TestTask(string label, string queueTag) 
+        public TestTask(string label, string queueTag = null) 
             : base(queueTag)
         {
             Label = label;

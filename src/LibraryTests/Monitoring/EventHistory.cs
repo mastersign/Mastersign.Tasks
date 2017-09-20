@@ -26,9 +26,11 @@ namespace Mastersign.Tasks.Test.Monitors
             }).ToArray();
         }
 
-        public EventRecord First => EventRecords.Length > 0 ? EventRecords[0] : null;
+        public bool IsEmpty => EventRecords.Length == 0;
 
-        public EventRecord Last => EventRecords.Length > 0 ? EventRecords[EventRecords.Length - 1] : null;
+        public EventRecord First => !IsEmpty ? EventRecords[0] : null;
+
+        public EventRecord Last => !IsEmpty ? EventRecords[EventRecords.Length - 1] : null;
 
         #region Assertions
 
@@ -57,8 +59,9 @@ namespace Mastersign.Tasks.Test.Monitors
         {
             if (EventRecords.Length < 2) return this;
             var value = EventRecords[0].GetNewValue<T>();
-            foreach (var re in EventRecords)
+            for (int i = 1; i < EventRecords.Length; i++)
             {
+                var re = EventRecords[i];
                 var newValue = re.GetNewValue<T>();
                 Assert.AreNotEqual<T>(value, newValue, $"The {re.EventName} event fired, but the value did not change.");
                 value = newValue;

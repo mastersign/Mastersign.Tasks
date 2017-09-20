@@ -12,7 +12,7 @@ namespace Mastersign.Tasks
         private string _label;
         private Thread _thread;
         private ManualResetEvent _aliveEvent = new ManualResetEvent(true);
-        private ManualResetEvent _startedEvent = new ManualResetEvent(false);
+        private ManualResetEvent _workedEvent = new ManualResetEvent(false);
         private ManualResetEvent _busyEvent = new ManualResetEvent(true);
         private CancelationToken _cancelationToken;
 
@@ -25,6 +25,8 @@ namespace Mastersign.Tasks
             _label = label;
             ThreadPriority = ThreadPriority.Normal;
         }
+
+        public TaskQueue Queue => _queue;
 
         public bool IsAlive => _thread != null;
 
@@ -120,7 +122,7 @@ namespace Mastersign.Tasks
                         continue;
                     }
                     Busy = true;
-                    _startedEvent.Set();
+                    _workedEvent.Set();
                     CurrentTask = task;
                     task.UpdateState(TaskState.InProgress);
                     OnTaskBegin(task);
@@ -183,9 +185,17 @@ namespace Mastersign.Tasks
             WorkerError?.Invoke(this, new WorkerErrorEventArgs(e));
         }
 
+        public event EventHandler Cancelled;
+
+        private void OnCancelled()
+        {
+            Cancelled?.Invoke(this, EventArgs.Empty);
+        }
+
         public void Cancel()
         {
             _cancelationToken?.Cancel();
+            OnCancelled();
         }
 
         public void WaitForEnd(bool mustHaveWorked = true, int timeout = Timeout.Infinite)
@@ -194,7 +204,7 @@ namespace Mastersign.Tasks
             {
                 if (mustHaveWorked)
                 {
-                    _startedEvent.WaitOne(timeout);
+                    _workedEvent.WaitOne(timeout);
                 }
                 _busyEvent.WaitOne(timeout);
             }
@@ -207,7 +217,7 @@ namespace Mastersign.Tasks
             {
                 if (mustHaveWorked)
                 {
-                    _startedEvent.WaitOne(timeout);
+                    _workedEvent.WaitOne(timeout);
                 }
                 _aliveEvent.WaitOne(timeout);
             }
@@ -223,7 +233,7 @@ namespace Mastersign.Tasks
             WaitForDeath();
             _cancelationToken = null;
             _aliveEvent.Close();
-            _startedEvent.Close();
+            _workedEvent.Close();
             _busyEvent.Close();
         }
     }

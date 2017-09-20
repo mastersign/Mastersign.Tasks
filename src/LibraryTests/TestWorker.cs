@@ -8,13 +8,6 @@ namespace Mastersign.Tasks.Test
 {
     class TestWorker : IWorker
     {
-        public string QueueTag { get; private set; }
-
-        public TestWorker(string tag)
-        {
-            QueueTag = tag;
-        }
-
         public void Process(ITask task, CancelationToken cancelationToken)
         {
             var t = (TaskBase)task;

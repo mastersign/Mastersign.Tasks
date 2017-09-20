@@ -65,8 +65,9 @@ namespace Mastersign.Tasks.Test
             wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
                 .AssertPropertyValues(true);
 
-            WaitFor(() => task.State == TaskState.Succeeded, 1000);
-
+            //WaitFor(() => task.State == TaskState.Succeeded, 1000);
+            wt.WaitForEnd(timeout: 10000);
+            
             Assert.IsTrue(q.IsEmpty);
             var wtHist = wtMon.History;
             wtHist.AssertSender(wt);
@@ -133,7 +134,8 @@ namespace Mastersign.Tasks.Test
                 q.Enqueue(task);
             }
 
-            WaitFor(() => tasks.All(t => t.State == TaskState.Succeeded), 10000);
+            //WaitFor(() => tasks.All(t => t.State == TaskState.Succeeded), 10000);
+            wt.WaitForEnd(timeout: 10000);
 
             Assert.IsTrue(q.IsEmpty);
             var wtHist = wtMon.History;

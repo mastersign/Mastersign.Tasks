@@ -21,6 +21,8 @@ namespace Mastersign.Tasks
         private readonly ManualResetEvent _workedEvent = new ManualResetEvent(false);
         private readonly ManualResetEvent _busyEvent = new ManualResetEvent(true);
 
+        public TaskQueue Queue => _queue;
+
         public ICollection<WorkerThread> WorkerThreads => _threads.ToArray();
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -70,19 +72,19 @@ namespace Mastersign.Tasks
         private void ThreadWorkerBusyChangedHandler(object sender, EventArgs e)
         {
             var thread = (WorkerThread)sender;
-            var count = 0;
             lock (_threadBusy)
             {
                 _threadBusy[thread] = thread.Busy;
+                var count = 0;
                 foreach (var busy in _threadBusy.Values)
                 {
                     if (busy) count++;
                 }
-            }
-            BusyWorkerCount = count;
-            if (thread.Busy)
-            {
+                BusyWorkerCount = count;
+                if (thread.Busy)
+                {
                     _workedEvent.Set();
+                }
             }
         }
 
@@ -158,6 +160,14 @@ namespace Mastersign.Tasks
             _queue.Enqueue(task);
         }
 
+        public void Enqueue(IEnumerable<ITask> tasks)
+        {
+            foreach (var task in tasks)
+            {
+                Enqueue(task);
+            }
+        }
+
         public void Start()
         {
             if (IsDisposed) throw new ObjectDisposedException(nameof(WorkingLine) + "_" + QueueTag);
@@ -167,6 +177,13 @@ namespace Mastersign.Tasks
             }
         }
 
+        public event EventHandler Cancelled;
+
+        private void OnCancelled()
+        {
+            Cancelled?.Invoke(this, EventArgs.Empty);
+        }
+
         public void Cancel()
         {
             _queue.Cancel();
@@ -174,6 +191,7 @@ namespace Mastersign.Tasks
             {
                 thread.Cancel();
             }
+            OnCancelled();
         }
 
         public void WaitForEnd(bool mustHaveWorked = true, int timeout = Timeout.Infinite)

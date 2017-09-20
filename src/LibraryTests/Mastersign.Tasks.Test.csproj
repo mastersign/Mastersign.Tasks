@@ -55,9 +55,11 @@
     <Compile Include="HardWork.cs" />
     <Compile Include="TestTask.cs" />
     <Compile Include="TestWorker.cs" />
+    <Compile Include="TestWorkerFactory.cs" />
     <Compile Include="Waiter.cs" />
     <Compile Include="WorkerThreadTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="WorkingLineTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

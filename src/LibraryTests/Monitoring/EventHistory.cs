@@ -30,23 +30,43 @@ namespace Mastersign.Tasks.Test.Monitors
 
         public EventRecord Last => EventRecords.Length > 0 ? EventRecords[EventRecords.Length - 1] : null;
 
-        public void AssertEventNames(params string[] eventNames)
+        #region Assertions
+
+        public EventHistory AssertEventNames(params string[] eventNames)
         {
             CollectionAssert.AreEqual(EventRecords.Select(re => re.EventName).ToArray(), eventNames);
+            return this;
         }
 
-        public void AssertPropertyValues<T>(params T[] values)
+        public EventHistory AssertPropertyValues<T>(params T[] values)
         {
             CollectionAssert.AreEqual(PropertyValues<T>(), values);
+            return this;
         }
 
-        public void AssertSender(object sender)
+        public EventHistory AssertSender(object sender)
         {
             foreach (var re in EventRecords)
             {
-                Assert.AreEqual(sender, re.Sender, "The sender of the event is unexpected.");
+                Assert.AreEqual(sender, re.Sender, $"The sender of the {re.EventName} event is unexpected.");
             }
+            return this;
         }
+
+        public EventHistory AssertPropertyValueChanges<T>()
+        {
+            if (EventRecords.Length < 2) return this;
+            var value = EventRecords[0].GetNewValue<T>();
+            foreach (var re in EventRecords)
+            {
+                var newValue = re.GetNewValue<T>();
+                Assert.AreNotEqual<T>(value, newValue, $"The {re.EventName} event fired, but the value did not change.");
+                value = newValue;
+            }
+            return this;
+        }
+
+        #endregion
 
         #region ICollection Implementation 
 

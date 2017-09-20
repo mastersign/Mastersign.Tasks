@@ -18,6 +18,7 @@ namespace Mastersign.Tasks
         private readonly TaskQueue _queue = new TaskQueue();
         private readonly List<WorkerThread> _threads = new List<WorkerThread>();
         private readonly Dictionary<WorkerThread, bool> _threadBusy = new Dictionary<WorkerThread, bool>();
+        private readonly ManualResetEvent _startedEvent = new ManualResetEvent(false);
         private readonly ManualResetEvent _busyEvent = new ManualResetEvent(true);
 
         public ICollection<WorkerThread> WorkerThreads => _threads.ToArray();
@@ -49,7 +50,7 @@ namespace Mastersign.Tasks
         public int BusyWorkerCount
         {
             get => _busyWorkerCount;
-            set
+            private set
             {
                 if (_busyWorkerCount == value) return;
                 _busyWorkerCount = value;
@@ -79,6 +80,10 @@ namespace Mastersign.Tasks
                 }
             }
             BusyWorkerCount = count;
+            if (thread.Busy)
+            {
+                _startedEvent.Set();
+            }
         }
 
         private void ThreadWorkerTaskRejectedHandler(object sender, TaskRejectedEventArgs e)
@@ -113,7 +118,7 @@ namespace Mastersign.Tasks
         public bool Busy
         {
             get => _busy;
-            set
+            private set
             {
                 if (_busy == value) return;
                 _busy = value;
@@ -171,16 +176,24 @@ namespace Mastersign.Tasks
             }
         }
 
-        public void WaitForEnd()
+        public void WaitForEnd(bool mustHaveWorked = true, int timeout = Timeout.Infinite)
         {
-            _busyEvent.WaitOne();
+            try
+            {
+                if (mustHaveWorked)
+                {
+                    _startedEvent.WaitOne(timeout); 
+                }
+                _busyEvent.WaitOne(timeout);
+            }
+            catch (ObjectDisposedException) { };
         }
 
-        public void WaitForDeath()
+        public void WaitForDeath(int timeout = Timeout.Infinite)
         {
             foreach (var thread in _threads)
             {
-                thread.WaitForDeath();
+                thread.WaitForDeath(mustHaveWorked: false, timeout: timeout);
             }
         }
 
@@ -197,6 +210,8 @@ namespace Mastersign.Tasks
                 thread.Dispose();
             }
             WaitForDeath();
+            _startedEvent.Close();
+            _busyEvent.Close();
         }
     }
 }

@@ -13,6 +13,10 @@ namespace Mastersign.Tasks.Test.Monitors
         private List<EventRecord> RecordedEvents { get; } = new List<EventRecord>();
         private readonly object recordLock = new object();
 
+        public event EventHandler<EventRecordEventArgs> CaughtEvent;
+
+        public bool LogEvents { get; set; }
+
         public EventMonitor(T target)
         {
             Target = target;
@@ -56,23 +60,23 @@ namespace Mastersign.Tasks.Test.Monitors
                             }
                             EventHandler(e.Name, sender, ea, vu);
                         }));
-                        Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to property changes on {e.Name}");
+                        Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to property changes on {e.Name}");
                     }
                     else
                     {
                         e.AddEventHandler(Target, (EventHandler)((sender, ea) => EventHandler(e.Name, sender, ea)));
-                        Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to {e.Name}");
+                        Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to {e.Name}");
                     }
                 }
                 else if (eht.IsGenericType && eht.GetGenericTypeDefinition() == typeof(EventHandler<>))
                 {
                     var handlerTarget = new GenericEventHandlerTarget(this, e);
                     e.AddEventHandler(Target, handlerTarget.GetHandlerDelegate());
-                    Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to {e.Name}");
+                    Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to {e.Name}");
                 }
                 else
                 {
-                    Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: NOT listening to {e.Name}");
+                    Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: NOT listening to {e.Name}");
                 }
             }
         }
@@ -105,11 +109,16 @@ namespace Mastersign.Tasks.Test.Monitors
 
         private void EventHandler(string eventName, object sender, EventArgs e, ValueUpdate vu = null)
         {
+            var record = new EventRecord(eventName, sender, e, vu);
             lock (recordLock)
             {
-                // Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: caught event from {eventName}");
-                RecordedEvents.Add(new EventRecord(eventName, sender, e, vu));
+                RecordedEvents.Add(record);
             }
+            if (LogEvents)
+            {
+                Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: caught event from {eventName}");
+            }
+            CaughtEvent?.Invoke(this, new EventRecordEventArgs(record));
         }
 
         public EventHistory History
@@ -132,6 +141,16 @@ namespace Mastersign.Tasks.Test.Monitors
                     (re, predicate) => re.Where(predicate));
                 return new EventHistory(filteredRecords.ToArray());
             }
+        }
+    }
+
+    public class EventRecordEventArgs : EventArgs
+    {
+        public EventRecord Record { get; }
+
+        public EventRecordEventArgs(EventRecord record)
+        {
+            Record = record;
         }
     }
 }

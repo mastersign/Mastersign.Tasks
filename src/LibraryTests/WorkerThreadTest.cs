@@ -14,6 +14,22 @@ namespace Mastersign.Tasks.Test
     [TestClass]
     public class WorkerThreadTest
     {
+        private void AssertState(WorkerThread wt,
+            bool isDisposed, bool isAlive, bool busy)
+        {
+            Assert.AreEqual(isDisposed, wt.IsDisposed, $"The disposed state of the {nameof(WorkerThread)} is unexpected.");
+            Assert.AreEqual(isAlive, wt.IsAlive, $"The alive state of the {nameof(WorkerThread)} is unexpected.");
+            Assert.AreEqual(busy, wt.Busy, $"The busy state of the {nameof(WorkerThread)} is unexpected.");
+        }
+
+        private void AssertTaskProgressRange(EventMonitor<TestTask> taskMonitor, float first = 0f, float last = 1f)
+        {
+            var progressHistory = taskMonitor.FilterHistory(ByPropertyChanges<float>(nameof(TestTask.Progress)));
+            Assert.IsTrue(progressHistory.Count > 0, "No progress events fired.");
+            Assert.AreEqual(first, progressHistory.First.GetNewValue<float>(), $"The first progress event did not signal {first}.");
+            Assert.AreEqual(last, progressHistory.Last.GetNewValue<float>(), $"The last progress event did not signal {last}.");
+        }
+
         [TestMethod]
         public void LifeCycleTest()
         {
@@ -24,24 +40,20 @@ namespace Mastersign.Tasks.Test
             var wtMon = new EventMonitor<WorkerThread>(wt);
 
             Assert.IsTrue(wt.Name.EndsWith(NAME));
-            Assert.IsFalse(wt.IsDisposed);
-            Assert.IsFalse(wt.IsAlive);
-            Assert.IsFalse(wt.Busy);
+            AssertState(wt, isDisposed: false, isAlive: false, busy: false);
 
             wt.Start();
-            Assert.IsTrue(wt.IsAlive);
-            var isAliveHistory = wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)));
-            isAliveHistory.AssertSender(wt);
-            isAliveHistory.AssertPropertyValues(true);
+            AssertState(wt, isDisposed: false, isAlive: true, busy: false);
+            wtMon.History.AssertSender(wt);
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.IsAlive)))
+                .AssertPropertyValues(true);
 
             q.Dispose();
             wt.Dispose();
-            Assert.IsTrue(wt.IsDisposed);
-            isAliveHistory = wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)));
-            isAliveHistory.AssertSender(wt);
-            isAliveHistory.AssertPropertyValues(true, false);
-            Assert.IsFalse(wt.IsAlive);
-            Assert.IsFalse(wt.Busy);
+            AssertState(wt, isDisposed: true, isAlive: false, busy: false);
+            wtMon.History.AssertSender(wt);
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.IsAlive)))
+                .AssertPropertyValues(true, false);
         }
 
         [TestMethod]
@@ -58,52 +70,52 @@ namespace Mastersign.Tasks.Test
             q.Enqueue(task);
 
             Assert.IsFalse(q.IsEmpty);
-            Assert.IsFalse(wt.IsAlive);
-            Assert.IsFalse(wt.Busy);
+            AssertState(wt, isDisposed: false, isAlive: false, busy: false);
 
             wt.Start();
-            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.IsAlive)))
                 .AssertPropertyValues(true);
 
             //WaitFor(() => task.State == TaskState.Succeeded, 1000);
             wt.WaitForEnd(timeout: 10000);
             
             Assert.IsTrue(q.IsEmpty);
+            AssertState(wt, isDisposed: false, isAlive: true, busy: false);
+
             var wtHist = wtMon.History;
             wtHist.AssertSender(wt);
             wtHist.AssertEventNames(
                 nameof(wt.IsAliveChanged),
-                nameof(wt.CurrentTaskChanged),
                 nameof(wt.BusyChanged),
+                nameof(wt.CurrentTaskChanged),
                 nameof(wt.TaskBegin),
                 nameof(wt.TaskEnd),
                 nameof(wt.CurrentTaskChanged),
                 nameof(wt.BusyChanged));
-            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.IsAlive)))
                 .AssertPropertyValues(true);
-            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.Busy)))
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.Busy)))
                 .AssertPropertyValues(true, false);
-            wtMon.FilterHistory(ByPropertyChanges<ITask>(nameof(wt.CurrentTask)))
+            wtMon.FilterHistory(ByPropertyChanges<ITask>(nameof(WorkerThread.CurrentTask)))
                 .AssertPropertyValues(task, null);
 
-            var taskHist = taskMon.History;
-            taskHist.AssertSender(task);
-            var taskStateHist = taskMon.FilterHistory(ByPropertyChanges<TaskState>(nameof(task.State)));
-            taskStateHist.AssertPropertyValues(
-                TaskState.InProgress,
-                TaskState.CleaningUp,
-                TaskState.Succeeded
-            );
-            var taskProgressHist = taskMon.FilterHistory(ByPropertyChanges<float>(nameof(task.Progress)));
-            Assert.IsTrue(taskProgressHist.Count > 0);
-            Assert.AreEqual(0f, taskProgressHist.First.GetNewValue<float>());
-            Assert.AreEqual(1f, taskProgressHist.Last.GetNewValue<float>());
+            taskMon.History.AssertSender(task);
+
+            taskMon.FilterHistory(ByPropertyChanges<TaskState>(nameof(TestTask.State)))
+                .AssertPropertyValues(
+                    TaskState.InProgress,
+                    TaskState.CleaningUp,
+                    TaskState.Succeeded
+                );
+            AssertTaskProgressRange(taskMon);
 
             wtMon.ClearHistory();
             q.Dispose();
             wt.Dispose();
-            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
+            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.IsAlive)))
                 .AssertPropertyValues(false);
+
+            AssertState(wt, isDisposed: true, isAlive: false, busy: false);
         }
 
         [TestMethod]
@@ -122,12 +134,12 @@ namespace Mastersign.Tasks.Test
             var taskMons = tasks.Select(t => new EventMonitor<TestTask>(t)).ToArray();
 
             Assert.IsTrue(q.IsEmpty);
-            Assert.IsFalse(wt.IsAlive);
-            Assert.IsFalse(wt.Busy);
+            AssertState(wt, isDisposed: false, isAlive: false, busy: false);
 
             wt.Start();
             wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(wt.IsAlive)))
                 .AssertPropertyValues(true);
+            AssertState(wt, isDisposed: false, isAlive: true, busy: false);
 
             foreach (var task in tasks)
             {
@@ -138,12 +150,14 @@ namespace Mastersign.Tasks.Test
             wt.WaitForEnd(timeout: 10000);
 
             Assert.IsTrue(q.IsEmpty);
+            AssertState(wt, isDisposed: false, isAlive: true, busy: false);
+
             var wtHist = wtMon.History;
             wtHist.AssertSender(wt);
             wtHist.AssertEventNames(
                 nameof(wt.IsAliveChanged),
-                nameof(wt.CurrentTaskChanged),
                 nameof(wt.BusyChanged),
+                nameof(wt.CurrentTaskChanged),
                 nameof(wt.TaskBegin),
                 nameof(wt.TaskEnd),
                 nameof(wt.CurrentTaskChanged),

@@ -44,6 +44,7 @@
     <Compile Include="ITask.cs" />
     <Compile Include="IWorker.cs" />
     <Compile Include="IWorkerFactory.cs" />
+    <Compile Include="PropertyUpdateEventArgs.cs" />
     <Compile Include="TaskEventArgs.cs" />
     <Compile Include="TaskWatcher.cs" />
     <Compile Include="UnhandledExceptionEventArgs.cs" />

@@ -67,6 +67,7 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
+        [TestCategory("LifeCycle")]
         public void LifeCycleTest()
             => WithWorkerThread(LifeCycleTestCase);
 
@@ -148,7 +149,7 @@ namespace Mastersign.Tasks.Test
             }
 
             //WaitFor(() => tasks.All(t => t.State == TaskState.Succeeded), 10000);
-            wt.WaitForEnd(timeout: 10000);
+            Assert.IsTrue(wt.WaitForEnd(timeout: 10000));
 
             Assert.IsTrue(q.IsEmpty);
             AssertState(wt, isDisposed: false, isAlive: true, busy: false);

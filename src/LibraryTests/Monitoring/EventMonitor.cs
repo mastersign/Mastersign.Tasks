@@ -70,9 +70,19 @@ namespace Mastersign.Tasks.Test.Monitors
                 }
                 else if (eht.IsGenericType && eht.GetGenericTypeDefinition() == typeof(EventHandler<>))
                 {
-                    var handlerTarget = new GenericEventHandlerTarget(this, e);
-                    e.AddEventHandler(Target, handlerTarget.GetHandlerDelegate());
-                    Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to {e.Name}");
+                    var eventArgsType = eht.GetGenericArguments()[0];
+                    if (eventArgsType.IsGenericType && eventArgsType.GetGenericTypeDefinition() == typeof(PropertyUpdateEventArgs<>))
+                    {
+                        var handlerTarget = new GenericPropertyUpdateEventHandlerTarget(this, e);
+                        e.AddEventHandler(Target, handlerTarget.GetHandlerDelegate());
+                        Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to property updates on {e.Name}");
+                    }
+                    else
+                    {
+                        var handlerTarget = new GenericEventHandlerTarget(this, e);
+                        e.AddEventHandler(Target, handlerTarget.GetHandlerDelegate());
+                        Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to generic {e.Name}");
+                    }
                 }
                 else
                 {
@@ -95,6 +105,34 @@ namespace Mastersign.Tasks.Test.Monitors
             public void Handler<TEventArgs>(object sender, TEventArgs ea) where TEventArgs : EventArgs
             {
                 eventMonitor.EventHandler(eventInfo.Name, sender, ea);
+            }
+
+            public Delegate GetHandlerDelegate()
+            {
+                var eht = eventInfo.EventHandlerType;
+                var eventArgsType = eht.GetGenericArguments()[0];
+                var genericMethodInfo = GetType().GetMethod(nameof(Handler));
+                var methodInfo = genericMethodInfo.MakeGenericMethod(eventArgsType);
+                return Delegate.CreateDelegate(eht, this, methodInfo);
+            }
+        }
+        public class GenericPropertyUpdateEventHandlerTarget
+        {
+            private readonly EventMonitor<T> eventMonitor;
+            private readonly EventInfo eventInfo;
+
+            public GenericPropertyUpdateEventHandlerTarget(EventMonitor<T> eventMonitor, EventInfo eventInfo)
+            {
+                this.eventMonitor = eventMonitor;
+                this.eventInfo = eventInfo;
+            }
+
+            public void Handler<TEventArgs>(object sender, TEventArgs ea) where TEventArgs : PropertyUpdateEventArgs
+            {
+                var newValue = ea.GetNewValue();
+                var vuType = typeof(ValueUpdate<>).MakeGenericType(ea.GetType().GetGenericArguments()[0]);
+                var vu = (ValueUpdate)Activator.CreateInstance(vuType, newValue);
+                eventMonitor.EventHandler(eventInfo.Name, sender, ea, vu);
             }
 
             public Delegate GetHandlerDelegate()

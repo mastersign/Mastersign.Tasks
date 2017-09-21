@@ -194,34 +194,42 @@ namespace Mastersign.Tasks
             OnCancelled();
         }
 
-        public void WaitForEnd(bool mustHaveWorked = true, int timeout = Timeout.Infinite)
+        public bool WaitForEnd(bool mustHaveWorked = true, int timeout = Timeout.Infinite)
         {
             try
             {
                 if (mustHaveWorked)
                 {
-                    _workedEvent.WaitOne(timeout); 
+                    _workedEvent.WaitOne(timeout);
                 }
-                _busyEvent.WaitOne(timeout);
+                return _busyEvent.WaitOne(timeout);
             }
-            catch (ObjectDisposedException) { };
+            catch (ObjectDisposedException)
+            {
+                return true;
+            };
         }
 
-        public void WaitForDeath(int timeout = Timeout.Infinite)
+        public bool WaitForDeath(int timeout = Timeout.Infinite)
         {
+            var result = true;
             foreach (var thread in _threads)
             {
-                thread.WaitForDeath(mustHaveWorked: false, timeout: timeout);
+                result &= thread.WaitForDeath(mustHaveWorked: false, timeout: timeout);
             }
+            return result;
         }
 
         public bool IsDisposed { get; private set; }
+        private readonly object _disposeLock = new object();
 
         public void Dispose()
         {
-            if (IsDisposed) return;
-            IsDisposed = true;
-
+            lock (_disposeLock)
+            {
+                if (IsDisposed) return;
+                IsDisposed = true;
+            }
             _queue.Dispose();
             foreach (var thread in _threads)
             {

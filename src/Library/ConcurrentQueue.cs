@@ -10,6 +10,8 @@ namespace Mastersign.Tasks
 
         public event EventHandler NewItem;
 
+        public event EventHandler Empty;
+
         public bool IsEmpty
         {
             get
@@ -26,8 +28,6 @@ namespace Mastersign.Tasks
             lock (items)
             {
                 items.Enqueue(item);
-            }
-            {
                 OnNewItem();
             }
         }
@@ -35,6 +35,11 @@ namespace Mastersign.Tasks
         protected virtual void OnNewItem()
         {
             NewItem?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected virtual void OnEmpty()
+        {
+            Empty?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
@@ -49,6 +54,10 @@ namespace Mastersign.Tasks
                 if (items.Count > 0)
                 {
                     item = items.Dequeue();
+                    if (items.Count == 0)
+                    {
+                        OnEmpty();
+                    }
                     return true;
                 }
                 else
@@ -66,6 +75,7 @@ namespace Mastersign.Tasks
                 removedItems = items.ToArray();
                 items.Clear();
             }
+            if (removedItems.Length > 0) OnEmpty();
             return removedItems;
         }
     }

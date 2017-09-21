@@ -10,10 +10,15 @@ namespace Mastersign.Tasks.Test
     {
         public string Label { get; }
 
-        public TestTask(string label, string queueTag = null) 
+        public string Group { get; }
+
+        public TestTask(string label, string queueTag = null, string group = null) 
             : base(queueTag)
         {
             Label = label;
+            Group = group;
         }
+
+        public void AddDependency(ITask task) => base.DependencyList.Add(task);
     }
 }

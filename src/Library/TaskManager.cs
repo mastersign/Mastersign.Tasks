@@ -17,6 +17,11 @@ namespace Mastersign.Tasks
 
         private readonly ManualResetEvent _isRunningEvent = new ManualResetEvent(true);
 
+        /// <remarks>
+        /// This event is fired from e decoupled thread.
+        /// Which means, that the state of the <see cref="TaskManager"/> may have changed again,
+        /// in the time when the event handler is executed.
+        /// </remarks>
         public event PropertyChangedEventHandler PropertyChanged;
 
         #region Event Dispatch
@@ -38,6 +43,13 @@ namespace Mastersign.Tasks
             _eventLoop.Push(handler, this, e);
         }
 
+        private delegate void PropertyChangedNotifier<T>(T oldValue, T newValue);
+
+        private void Notify<T>(PropertyChangedNotifier<T> handler, T oldValue, T newValue)
+        {
+            _eventLoop.Push(handler, oldValue, newValue);
+        }
+
         #endregion
 
         #region State
@@ -50,22 +62,30 @@ namespace Mastersign.Tasks
             {
                 if (_isRunning == value) return;
                 _isRunning = value;
+                if (_isRunning) _isRunningEvent.Reset();
 
-                if (_isRunning)
-                    _isRunningEvent.Reset();
-                else
+                if (_isRunning) Notify(Started);
+                Notify(OnIsRunningChanged, !_isRunning, _isRunning);
+                if (!_isRunning) Notify(Finished);
+
+                if (!_isRunning)
                     _isRunningEvent.Set();
-
-                Notify(OnIsRunningChanged);
             }
         }
 
-        public event EventHandler IsRunningChanged;
+        /// <remarks>
+        /// This event is fired from e decoupled thread.
+        /// Which means, that the state of the <see cref="TaskManager"/> may have changed again,
+        /// in the time when the event handler is executed.
+        /// </remarks>
+        public event EventHandler<PropertyUpdateEventArgs<bool>> IsRunningChanged;
 
-        private void OnIsRunningChanged()
+        private void OnIsRunningChanged(bool oldValue, bool newValue)
         {
-            IsRunningChanged?.Invoke(this, EventArgs.Empty);
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRunning)));
+            IsRunningChanged?.Invoke(this, 
+                new PropertyUpdateEventArgs<bool>(nameof(IsRunning), oldValue, newValue));
+            PropertyChanged?.Invoke(this, 
+                new PropertyChangedEventArgs(nameof(IsRunning)));
         }
 
         private readonly object _workingLineBusyCountLock = new object();
@@ -79,8 +99,8 @@ namespace Mastersign.Tasks
                 {
                     if (workingLine.Busy) count++;
                 }
+                BusyWorkingLinesCount = count;
             }
-            BusyWorkingLinesCount = count;
             if (count == 0)
             {
                 CheckForEnd();
@@ -101,11 +121,10 @@ namespace Mastersign.Tasks
                         break;
                     }
                 }
-            }
-            if (finished)
-            {
-                IsRunning = false;
-                Notify(Finished);
+                if (finished)
+                {
+                    IsRunning = false;
+                }
             }
         }
 
@@ -116,17 +135,25 @@ namespace Mastersign.Tasks
             set
             {
                 if (_busyWorkingLinesCount == value) return;
+                var oldValue = _busyWorkingLinesCount;
                 _busyWorkingLinesCount = value;
-                Notify(OnBusyWorkingLinesCountChanged);
+                Notify(OnBusyWorkingLinesCountChanged, oldValue, value);
             }
         }
 
-        public event EventHandler BusyWorkingLinesCountChanged;
+        /// <remarks>
+        /// This event is fired from e decoupled thread.
+        /// Which means, that the state of the <see cref="TaskManager"/> may have changed again,
+        /// in the time when the event handler is executed.
+        /// </remarks>
+        public event EventHandler<PropertyUpdateEventArgs<int>> BusyWorkingLinesCountChanged;
 
-        private void OnBusyWorkingLinesCountChanged()
+        private void OnBusyWorkingLinesCountChanged(int oldValue, int newValue)
         {
-            BusyWorkingLinesCountChanged?.Invoke(this, EventArgs.Empty);
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusyWorkingLinesCount)));
+            BusyWorkingLinesCountChanged?.Invoke(this, 
+                new PropertyUpdateEventArgs<int>(nameof(BusyWorkingLinesCount), oldValue, newValue));
+            PropertyChanged?.Invoke(this, 
+                new PropertyChangedEventArgs(nameof(BusyWorkingLinesCount)));
         }
 
         #endregion
@@ -150,17 +177,19 @@ namespace Mastersign.Tasks
             _tasks.Clear();
         }
 
-        public void AddWorkingLine(string tag, IWorkerFactory factory, int worker, ThreadPriority threadPriority)
+        public int TaskCount => _tasks.Count;
+
+        public void AddWorkingLine(string queueTag, IWorkerFactory factory, int worker, ThreadPriority threadPriority)
         {
             if (IsRunning) throw new InvalidOperationException("Working lines can not be added after the manager was started.");
-            if (_workingLines.ContainsKey(tag)) throw new ArgumentException("The given tag is already in use for another working line.", nameof(tag));
-            var workingLine = new WorkingLine(tag, factory, worker, threadPriority);
+            if (_workingLines.ContainsKey(queueTag)) throw new ArgumentException("The given tag is already in use for another working line.", nameof(queueTag));
+            var workingLine = new WorkingLine(queueTag, factory, worker, threadPriority);
             workingLine.BusyChanged += WorkingLineBusyChangedHandler;
             workingLine.TaskRejected += WorkingLineTaskRejectedHandler;
             workingLine.TaskBegin += WorkingLineTaskBeginHandler;
             workingLine.TaskEnd += WorkingLineTaskEndHandler;
             workingLine.WorkerError += WorkingLineWorkerErrorHandler;
-            _workingLines[tag] = workingLine;
+            _workingLines[queueTag] = workingLine;
         }
 
         #endregion
@@ -171,7 +200,6 @@ namespace Mastersign.Tasks
         {
             if (IsDisposed) throw new ObjectDisposedException(nameof(TaskManager));
             if (IsRunning) throw new InvalidOperationException("The manager was already started.");
-
             IsRunning = true;
             if (_tasks.Count == 0)
             {
@@ -186,11 +214,14 @@ namespace Mastersign.Tasks
 
             InitializeTaskWatchers();
 
-            Notify(Started);
-
             NotifyInitiallyReadyTasks();
         }
 
+        /// <remarks>
+        /// This event is fired from e decoupled thread.
+        /// Which means, that the state of the <see cref="TaskManager"/> may have changed again,
+        /// in the time when the event handler is executed.
+        /// </remarks>
         public event EventHandler Started;
 
         public void Cancel()
@@ -204,23 +235,44 @@ namespace Mastersign.Tasks
 
         public event EventHandler Canceled;
 
-        public void WaitForEnd()
+        /// <remarks>
+        /// Waiting for the end of the task manager activity does NOT mean, all queued events are fired.
+        /// </remarks>
+        public bool WaitForEnd(int timeout = Timeout.Infinite)
         {
-            _isRunningEvent.WaitOne();
+            try
+            {
+                return _isRunningEvent.WaitOne(timeout);
+            }
+            catch (ObjectDisposedException)
+            {
+                return true;
+            };
         }
 
+        /// <remarks>
+        /// This event is fired from e decoupled thread.
+        /// Which means, that the state of the <see cref="TaskManager"/> may have changed again,
+        /// in the time when the event handler is executed.
+        /// </remarks>
         public event EventHandler Finished;
 
         public bool IsDisposed { get; private set; }
+        private readonly object _disposeLock = new object();
 
         public void Dispose()
         {
-            if (IsDisposed) return;
+            lock (_disposeLock)
+            {
+                if (IsDisposed) return;
+                IsDisposed = true;
+            }
             foreach (var workingLine in _workingLines.Values)
             {
                 workingLine.Dispose();
             }
             _eventLoop.Dispose();
+            _isRunningEvent.Close();
             Disposed?.Invoke(this, EventArgs.Empty);
         }
 
@@ -286,6 +338,11 @@ namespace Mastersign.Tasks
             Notify(TaskRejected, e);
         }
 
+        /// <remarks>
+        /// This event is fired from e decoupled thread.
+        /// Which means, that the state of the <see cref="TaskManager"/> may have changed again,
+        /// in the time when the event handler is executed.
+        /// </remarks>
         public event EventHandler<TaskRejectedEventArgs> TaskRejected;
 
         private void WorkingLineTaskBeginHandler(object sender, TaskEventArgs e)
@@ -293,6 +350,11 @@ namespace Mastersign.Tasks
             Notify(TaskBegin, e);
         }
 
+        /// <remarks>
+        /// This event is fired from e decoupled thread.
+        /// Which means, that the state of the <see cref="TaskManager"/> may have changed again,
+        /// in the time when the event handler is executed.
+        /// </remarks>
         public event EventHandler<TaskEventArgs> TaskBegin;
 
         private void WorkingLineTaskEndHandler(object sender, TaskEventArgs e)
@@ -300,6 +362,11 @@ namespace Mastersign.Tasks
             Notify(TaskEnd, e);
         }
 
+        /// <remarks>
+        /// This event is fired from e decoupled thread.
+        /// Which means, that the state of the <see cref="TaskManager"/> may have changed again,
+        /// in the time when the event handler is executed.
+        /// </remarks>
         public event EventHandler<TaskEventArgs> TaskEnd;
 
         private void WorkingLineWorkerErrorHandler(object sender, WorkerErrorEventArgs e)

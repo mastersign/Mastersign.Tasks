@@ -54,6 +54,7 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
+        [TestCategory("LifeCycle")]
         public void LifeCycleTest()
             => WithWorkingLine(LifeCycleTestCase, worker: 3);
 

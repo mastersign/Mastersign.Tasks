@@ -34,15 +34,33 @@ namespace Mastersign.Tasks.Test.Monitors
 
         #region Assertions
 
-        public EventHistory AssertEventNames(params string[] eventNames)
+        public EventHistory AssertEventNames(params string[] expectedEventNames)
         {
-            CollectionAssert.AreEqual(EventRecords.Select(re => re.EventName).ToArray(), eventNames);
+            var expectedCount = expectedEventNames.Length;
+            var caughtEventNames = EventRecords.Select(re => re.EventName).ToArray();
+            var caughtCount = caughtEventNames.Length;
+            Assert.AreEqual(expectedCount, caughtCount,
+                $"Expected number of events is {expectedCount}, but was {caughtCount}.");
+            CollectionAssert.AreEqual(caughtEventNames, expectedEventNames);
             return this;
         }
 
         public EventHistory AssertPropertyValues<T>(params T[] values)
         {
-            CollectionAssert.AreEqual(PropertyValues<T>(), values);
+            CollectionAssert.AreEqual(values, PropertyValues<T>());
+            return this;
+        }
+
+        public EventHistory AssertPropertyValuesInSet<T>(params T[] values)
+        {
+            Assert.IsTrue(PropertyValues<T>().All(v => values.Contains(v)));
+            return this;
+        }
+
+        public EventHistory AssertPropertyValuesOccured<T>(params T[] values)
+        {
+            var caughtValues = PropertyValues<T>();
+            Assert.IsTrue(values.All(v => caughtValues.Contains(v)));
             return this;
         }
 

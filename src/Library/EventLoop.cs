@@ -7,8 +7,8 @@ namespace Mastersign.Tasks
 {
     internal class EventLoop : IDisposable
     {
-        private ConcurrentDispatcher<DelegateCall> _queue = new ConcurrentDispatcher<DelegateCall>();
-        private Thread _loopThread;
+        private readonly ConcurrentDispatcher<DelegateCall> _queue = new ConcurrentDispatcher<DelegateCall>();
+        private readonly Thread _loopThread;
 
         public event EventHandler<UnhandledExceptionEventArgs> UnhandledException;
 
@@ -49,6 +49,11 @@ namespace Mastersign.Tasks
             {
                 // ignore exceptions during event handling for unhandled exceptions
             }
+        }
+
+        public bool WaitForEmpty(int timeout = Timeout.Infinite)
+        {
+            return _queue.WaitForEmpty(timeout);
         }
 
         public bool IsDisposed { get; private set; }

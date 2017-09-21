@@ -198,7 +198,7 @@ namespace Mastersign.Tasks
             OnCancelled();
         }
 
-        public void WaitForEnd(bool mustHaveWorked = true, int timeout = Timeout.Infinite)
+        public bool WaitForEnd(bool mustHaveWorked = true, int timeout = Timeout.Infinite)
         {
             try
             {
@@ -206,12 +206,15 @@ namespace Mastersign.Tasks
                 {
                     _workedEvent.WaitOne(timeout);
                 }
-                _busyEvent.WaitOne(timeout);
+                return _busyEvent.WaitOne(timeout);
             }
-            catch (ObjectDisposedException) { }
+            catch (ObjectDisposedException)
+            {
+                return true;
+            }
         }
 
-        public void WaitForDeath(bool mustHaveWorked = false, int timeout = Timeout.Infinite)
+        public bool WaitForDeath(bool mustHaveWorked = false, int timeout = Timeout.Infinite)
         {
             try
             {
@@ -219,17 +222,24 @@ namespace Mastersign.Tasks
                 {
                     _workedEvent.WaitOne(timeout);
                 }
-                _aliveEvent.WaitOne(timeout);
+                return _aliveEvent.WaitOne(timeout);
             }
-            catch (ObjectDisposedException) { }
+            catch (ObjectDisposedException)
+            {
+                return true;
+            }
         }
 
         public bool IsDisposed { get; private set; }
+        private readonly object _disposeLock = new object();
 
         public void Dispose()
         {
-            if (IsDisposed) return;
-            IsDisposed = true;
+            lock (_disposeLock)
+            {
+                if (IsDisposed) return;
+                IsDisposed = true;
+            }
             WaitForDeath();
             _cancelationToken = null;
             _aliveEvent.Close();

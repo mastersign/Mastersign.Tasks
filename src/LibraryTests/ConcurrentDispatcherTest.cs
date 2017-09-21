@@ -27,7 +27,11 @@ namespace Mastersign.Tasks.Test
             const string FORMAT = "0000000000";
             const string INIT = "init";
 
+            var newItemCounter = 0;
+            var emptyCounter = 0;
             var q = new ConcurrentDispatcher<string>();
+            q.NewItem += (sender, e) => Interlocked.Increment(ref newItemCounter);
+            q.Empty += (sender, e) => Interlocked.Increment(ref emptyCounter);
 
             // enqueue N items
             for (int i = 0; i < N; i++)
@@ -50,6 +54,9 @@ namespace Mastersign.Tasks.Test
 
             Assert.IsTrue(q.IsEmpty);
 
+            Assert.AreEqual(N, newItemCounter);
+            Assert.AreEqual(1, emptyCounter);
+
             // try dequeue empty queue
 
             var s2 = INIT;
@@ -67,6 +74,11 @@ namespace Mastersign.Tasks.Test
             Assert.IsFalse(q.TryDequeue(ref s3));
             // try blocking dequeue
             Assert.IsFalse(q.Dequeue(ref s3));
+        }
+
+        private void Q_NewItem(object sender, EventArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         [TestMethod]
@@ -95,7 +107,9 @@ namespace Mastersign.Tasks.Test
 
             // prepare event check
             var productionCount = 0;
-            q.NewItem += (sender, e) => { Interlocked.Increment(ref productionCount); };
+            var emptyCount = 0;
+            q.NewItem += (sender, e) => Interlocked.Increment(ref productionCount);
+            q.Empty += (sender, e) => Interlocked.Increment(ref emptyCount);
 
             // prepare consumer bags
             var consumerItems = new List<string>[CONSUMERS];
@@ -152,6 +166,9 @@ namespace Mastersign.Tasks.Test
                     Thread.Sleep(1);
                 }
             }
+
+            // check for empty signal
+            Assert.IsFalse(emptyCount == 0, $"The Empty event was not fired once.");
 
             // dispose the dispatcher
             q.Dispose();

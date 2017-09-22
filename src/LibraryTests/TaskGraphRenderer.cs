@@ -133,6 +133,8 @@ namespace Mastersign.Tasks.Test
             IAttributeValueSelector colorSelector = null,
             IAttributeValueSelector shapeSelector = null)
         {
+            colorSelector = colorSelector ?? new ByTaskStateSelector(TASK_STATE_COLORS);
+            shapeSelector = shapeSelector ?? new ByQueueSelector(tasks, SHAPES, new Random(0));
             w.WriteLine("digraph Tasks {");
             var nodeAttributes = AttributeList(
                 Attribute("style", "filled"),
@@ -141,8 +143,8 @@ namespace Mastersign.Tasks.Test
             foreach (var t in tasks)
             {
                 var taskState = taskStates != null ? taskStates[t] : TaskState.Waiting;
-                var color = colorSelector?.SelectAttributeValue(t.QueueTag, t.Group, taskState);
-                var shape = shapeSelector?.SelectAttributeValue(t.QueueTag, t.Group, taskState);
+                var color = colorSelector.SelectAttributeValue(t.QueueTag, t.Group, taskState);
+                var shape = shapeSelector.SelectAttributeValue(t.QueueTag, t.Group, taskState);
                 var attributes = AttributeList(
                     Attribute("color", color),
                     Attribute("fillcolor", color),
@@ -178,12 +180,13 @@ namespace Mastersign.Tasks.Test
             File.Delete(tmpDotFile);
         }
 
-        public static void DisplayGraph(List<TestTask> tasks, Random rand = null)
+        public static void DisplayGraph(List<TestTask> tasks,
+            Dictionary<TestTask, TaskState> taskStates = null,
+            IAttributeValueSelector colorSelector = null,
+            IAttributeValueSelector shapeSelector = null)
         {
             var tmpFile = Path.Combine(Path.GetTempPath(), Path.ChangeExtension(Path.GetRandomFileName(), ".png"));
-            RenderGraph(tmpFile, tasks, 
-                colorSelector: new ByGroupSelector(tasks, COLORS, rand),
-                shapeSelector: new ByQueueSelector(tasks, SHAPES, rand));
+            RenderGraph(tmpFile, tasks, taskStates, colorSelector, shapeSelector);
             if (!File.Exists(tmpFile)) throw new FileNotFoundException("Generated PNG file not found", tmpFile);
             Process.Start(tmpFile);
         }
@@ -201,12 +204,19 @@ namespace Mastersign.Tasks.Test
             }
         }
 
+        public enum VideoFormat
+        {
+            AviMjpeg,
+            Gif
+        }
+
         public static void RenderTaskGraphAnimation(List<TestTask> tasks, EventMonitor<TaskManager> tmMon,
-            string outputFile, Random rand = null, int maxWidth = 1280)
+            string outputFile, VideoFormat format = VideoFormat.AviMjpeg, 
+            int maxWidth = 1280, float fps = 2)
         {
             var taskStateGenerations = RebuildTaskState(tasks, tmMon);
             var colorSelector = new ByTaskStateSelector(TASK_STATE_COLORS);
-            var shapeSelector = new ByQueueSelector(tasks, SHAPES, rand);
+            var shapeSelector = new ByQueueSelector(tasks, SHAPES, new Random(0));
 
             var tmpDir = Path.Combine(Path.GetDirectoryName(outputFile), Path.GetFileNameWithoutExtension(outputFile));
             Directory.CreateDirectory(tmpDir);
@@ -218,6 +228,31 @@ namespace Mastersign.Tasks.Test
                 RenderGraph(path, tasks, taskStates, colorSelector, shapeSelector);
                 i++;
             }
+
+            string fileExt;
+            string codec;
+            switch (format)
+            {
+                case VideoFormat.Gif:
+                    fileExt = ".gif";
+                    codec = "";
+                    break;
+                case VideoFormat.AviMjpeg:
+                default:
+                    fileExt = ".avi";
+                    codec = "-vcodec mjpeg -huffman optimal -q:v 3";
+                    break;
+            }
+            outputFile = Path.ChangeExtension(outputFile, fileExt);
+            var arguments = $"-f image2 -y -r {fps} -i \"{tmpDir}\\%04d.png\" -vf scale={maxWidth}:-1 {codec} \"{outputFile}\"";
+            var p = Process.Start(new ProcessStartInfo("ffmpeg", arguments)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+            p.WaitForExit();
+
+            Directory.Delete(tmpDir, true);
         }
     }
 }

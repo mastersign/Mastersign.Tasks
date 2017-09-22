@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mastersign.Tasks.Test.Monitors;
+using static Mastersign.Tasks.Test.Monitors.EventRecordPredicates;
 
 namespace Mastersign.Tasks.Test
 {
@@ -33,10 +35,22 @@ namespace Mastersign.Tasks.Test
             "pentagon", "hexagon", "septagon", "octagon",
         };
 
-        private static Dictionary<string, string> CreateRandomLookup(Random rand, IEnumerable<string> groups, IEnumerable<string> choices)
+        private static readonly Dictionary<TaskState, string> TASK_STATE_COLORS =
+            new Dictionary<TaskState, string> {
+                {TaskState.Waiting, "#D0E8FF"},
+                {TaskState.Obsolete, "#908070"},
+                {TaskState.InProgress, "#FFE020"},
+                {TaskState.CleaningUp, "#80FFFF"},
+                {TaskState.Succeeded, "#80FF80"},
+                {TaskState.Failed, "#FF6040"},
+                {TaskState.Canceled, "#C040C0"},
+            };
+
+        private static Dictionary<T, string> CreateRandomLookup<T>(IEnumerable<T> groups, IEnumerable<string> choices, Random rand = null)
         {
             var choiceList = new List<string>(choices);
-            var result = new Dictionary<string, string>();
+            var result = new Dictionary<T, string>();
+            rand = rand ?? new Random();
             foreach (var group in groups)
             {
                 if (choiceList.Count == 0)
@@ -51,7 +65,58 @@ namespace Mastersign.Tasks.Test
             return result;
         }
 
-        private static KeyValuePair<string, string> Attribute(string key, string value) 
+        public interface IAttributeValueSelector
+        {
+            string SelectAttributeValue(string queueTag, string group, TaskState state);
+        }
+
+        public abstract class RandomValueSelector<T> : IAttributeValueSelector
+        {
+            protected Dictionary<T, string> Lookup { get; }
+
+            protected RandomValueSelector(IEnumerable<T> propertyValues, IEnumerable<string> options, Random rand = null)
+            {
+                var propertyValueSet = new HashSet<T>(propertyValues);
+                Lookup = CreateRandomLookup(propertyValueSet, options, rand);
+            }
+
+            public abstract string SelectAttributeValue(string queueTag, string group, TaskState state);
+        }
+
+        public class ByQueueSelector : RandomValueSelector<string>
+        {
+            public ByQueueSelector(IEnumerable<ITask> tasks, IEnumerable<string> options, Random rand = null)
+                : base(from t in tasks select t.QueueTag, options, rand)
+            { }
+
+            public override string SelectAttributeValue(string queueTag, string group, TaskState state)
+                => Lookup[queueTag];
+        }
+
+        public class ByGroupSelector : RandomValueSelector<string>
+        {
+            public ByGroupSelector(IEnumerable<TestTask> tasks, IEnumerable<string> options, Random rand = null)
+                : base(from t in tasks select t.Group, options, rand)
+            { }
+
+            public override string SelectAttributeValue(string queueTag, string group, TaskState state)
+                => Lookup[group];
+        }
+
+        public class ByTaskStateSelector : IAttributeValueSelector
+        {
+            private Dictionary<TaskState, string> Lookup { get; }
+
+            public ByTaskStateSelector(Dictionary<TaskState, string> lookup)
+            {
+                Lookup = lookup;
+            }
+
+            public string SelectAttributeValue(string queueTag, string group, TaskState state)
+                => Lookup[state];
+        }
+
+        private static KeyValuePair<string, string> Attribute(string key, string value)
             => new KeyValuePair<string, string>(key, value);
 
         private static string AttributeList(params KeyValuePair<string, string>[] attributes)
@@ -63,14 +128,11 @@ namespace Mastersign.Tasks.Test
             return validAttributes.Length > 0 ? " [" + string.Join(", ", validAttributes) + "]" : string.Empty;
         }
 
-        public static void WriteDotFile(TextWriter w, List<TestTask> tasks, Random rand = null)
+        public static void WriteDotFile(TextWriter w, List<TestTask> tasks,
+            Dictionary<TestTask, TaskState> taskStates = null,
+            IAttributeValueSelector colorSelector = null,
+            IAttributeValueSelector shapeSelector = null)
         {
-            rand = rand ?? new Random();
-            var queueTags = new HashSet<string>(from t in tasks select t.QueueTag);
-            var groups = new HashSet<string>(from t in tasks select t.Group);
-            var groupColors = CreateRandomLookup(rand, groups, COLORS);
-            var queueTagShapes = CreateRandomLookup(rand, queueTags, SHAPES);
-
             w.WriteLine("digraph Tasks {");
             var nodeAttributes = AttributeList(
                 Attribute("style", "filled"),
@@ -78,10 +140,13 @@ namespace Mastersign.Tasks.Test
             w.WriteLine($"  node{nodeAttributes};");
             foreach (var t in tasks)
             {
+                var taskState = taskStates != null ? taskStates[t] : TaskState.Waiting;
+                var color = colorSelector?.SelectAttributeValue(t.QueueTag, t.Group, taskState);
+                var shape = shapeSelector?.SelectAttributeValue(t.QueueTag, t.Group, taskState);
                 var attributes = AttributeList(
-                    Attribute("color", groupColors[t.Group]),
-                    Attribute("fillcolor", groupColors[t.Group]),
-                    Attribute("shape", queueTagShapes[t.QueueTag]));
+                    Attribute("color", color),
+                    Attribute("fillcolor", color),
+                    Attribute("shape", shape));
                 w.WriteLine($"  {t.Label}{attributes};");
             }
             foreach (var t in tasks)
@@ -94,17 +159,20 @@ namespace Mastersign.Tasks.Test
             w.WriteLine("}");
         }
 
-        public static void RenderGraph(List<TestTask> tasks, string targetPngFile, Random rand = null)
+        public static void RenderGraph(string targetPngFile, 
+            List<TestTask> tasks, Dictionary<TestTask, TaskState> taskStates = null,
+            IAttributeValueSelector colorSelector = null,
+            IAttributeValueSelector shapeSelector = null)
         {
             var tmpDotFile = Path.GetTempFileName();
             using (var w = new StreamWriter(tmpDotFile, false, Encoding.ASCII))
             {
-                WriteDotFile(w, tasks, rand);
+                WriteDotFile(w, tasks, taskStates, colorSelector, shapeSelector);
             }
             var p = Process.Start(new ProcessStartInfo("dot", $"-Tpng \"-o{targetPngFile}\" \"{tmpDotFile}\"")
             {
-                CreateNoWindow = false,
-                UseShellExecute = true
+                CreateNoWindow = true,
+                UseShellExecute = false
             });
             p.WaitForExit();
             File.Delete(tmpDotFile);
@@ -113,9 +181,43 @@ namespace Mastersign.Tasks.Test
         public static void DisplayGraph(List<TestTask> tasks, Random rand = null)
         {
             var tmpFile = Path.Combine(Path.GetTempPath(), Path.ChangeExtension(Path.GetRandomFileName(), ".png"));
-            RenderGraph(tasks, tmpFile, rand);
+            RenderGraph(tmpFile, tasks, 
+                colorSelector: new ByGroupSelector(tasks, COLORS, rand),
+                shapeSelector: new ByQueueSelector(tasks, SHAPES, rand));
             if (!File.Exists(tmpFile)) throw new FileNotFoundException("Generated PNG file not found", tmpFile);
             Process.Start(tmpFile);
+        }
+
+        private static IEnumerable<Dictionary<TestTask, TaskState>> RebuildTaskState(List<TestTask> tasks, EventMonitor<TaskManager> tmMon)
+        {
+            var taskEvents = tmMon.FilterHistory(
+                ByEventName(nameof(TaskManager.TaskBegin), nameof(TaskManager.TaskEnd)));
+            var taskStates = tasks.ToDictionary(t => t, t => TaskState.Waiting);
+            foreach (var er in taskEvents)
+            {
+                var ea = (TaskEventArgs)er.EventArgs;
+                taskStates[(TestTask)ea.Task] = ea.State;
+                yield return taskStates;
+            }
+        }
+
+        public static void RenderTaskGraphAnimation(List<TestTask> tasks, EventMonitor<TaskManager> tmMon,
+            string outputFile, Random rand = null, int maxWidth = 1280)
+        {
+            var taskStateGenerations = RebuildTaskState(tasks, tmMon);
+            var colorSelector = new ByTaskStateSelector(TASK_STATE_COLORS);
+            var shapeSelector = new ByQueueSelector(tasks, SHAPES, rand);
+
+            var tmpDir = Path.Combine(Path.GetDirectoryName(outputFile), Path.GetFileNameWithoutExtension(outputFile));
+            Directory.CreateDirectory(tmpDir);
+
+            var i = 0;
+            foreach (var taskStates in taskStateGenerations)
+            {
+                var path = Path.Combine(tmpDir, $"{i:0000}.png");
+                RenderGraph(path, tasks, taskStates, colorSelector, shapeSelector);
+                i++;
+            }
         }
     }
 }

@@ -75,6 +75,7 @@ namespace Mastersign.Tasks.Test
             Assert.AreEqual(0, tm.TaskCount);
             return null;
         }
+
         private void LifeCycleTestAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon, object cache)
         {
             AssertState(tm, isDisposed: false, isRunning: false);
@@ -103,6 +104,7 @@ namespace Mastersign.Tasks.Test
 
             return taskMon;
         }
+
         private void MinimalTaskTestAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
             EventMonitor<TestTask> taskMon)
         {
@@ -132,7 +134,7 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
-        [Ignore]
+        [TestCategory("SideEffects")]
         public void TaskGenerationTest()
         {
             var rand = new Random(1);
@@ -150,7 +152,7 @@ namespace Mastersign.Tasks.Test
             var rand = new Random(10);
             var queueTags = new[] { "A", "B", "C" };
             var tasks = TestTaskFactory.CreateMeshedCascade(rand,
-                count: 50, levels: 8, minDeps: 1, maxDeps: 3,
+                count: 50, levels: 10, minDeps: 1, maxDeps: 3,
                 queueTags: queueTags);
             var taskMons = tasks.Select(t => new EventMonitor<ITask>(t)).ToArray();
 
@@ -160,6 +162,7 @@ namespace Mastersign.Tasks.Test
             AssertState(tm, isDisposed: false, isRunning: false);
             return taskMons;
         }
+
         private void MultiTaskAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon, 
             EventMonitor<ITask>[] taskMons)
         {
@@ -188,6 +191,12 @@ namespace Mastersign.Tasks.Test
                         TaskState.CleaningUp,
                         TaskState.Succeeded);
             }
+
+            TaskGraphRenderer.RenderTaskGraphAnimation(taskMons.Select(m => (TestTask)m.Target).ToList(), tmMon,
+                System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                    "task_graph_animation.avi"),
+                maxWidth: 1024, rand: new Random(1));
         }
     }
 }

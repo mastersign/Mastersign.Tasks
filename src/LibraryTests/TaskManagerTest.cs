@@ -225,7 +225,7 @@ namespace Mastersign.Tasks.Test
                 System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
                     "task_graph_animation.avi"),
-                maxWidth: 1024, format: TaskGraphRenderer.VideoFormat.AviMjpeg, fps: 3.3333f);
+                maxWidth: 1024, format: TaskGraphRenderer.VideoFormat.AviMjpeg, fps: 3.333f);
 
             tgMon.AssertTaskEventsRespectDependencies();
         }

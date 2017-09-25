@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Mastersign.Tasks.Test.Monitors;
 using static Mastersign.Tasks.Test.Monitors.EventRecordPredicates;
+using System.Globalization;
 
 namespace Mastersign.Tasks.Test
 {
@@ -245,7 +246,8 @@ namespace Mastersign.Tasks.Test
                     break;
             }
             outputFile = Path.ChangeExtension(outputFile, fileExt);
-            var arguments = $"-f image2 -y -r {fps} -i \"{tmpDir}\\%04d.png\" -vf scale={maxWidth}:-1 {codec} \"{outputFile}\"";
+            var c = CultureInfo.InvariantCulture;
+            var arguments = $"-f image2 -y -r {fps.ToString(c)} -i \"{tmpDir}\\%04d.png\" -vf scale={maxWidth.ToString(c)}:-1 {codec} \"{outputFile}\"";
             var p = Process.Start(new ProcessStartInfo("ffmpeg", arguments)
             {
                 CreateNoWindow = true,

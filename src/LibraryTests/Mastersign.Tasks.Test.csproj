@@ -53,6 +53,7 @@
     <Compile Include="TaskBaseTest.cs" />
     <Compile Include="ConcurrentDispatcherTest.cs" />
     <Compile Include="HardWork.cs" />
+    <Compile Include="TaskGraphMonitor.cs" />
     <Compile Include="TaskGraphRenderer.cs" />
     <Compile Include="TaskManagerTest.cs" />
     <Compile Include="TestTask.cs" />

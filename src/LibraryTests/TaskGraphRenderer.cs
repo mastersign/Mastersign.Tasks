@@ -161,7 +161,7 @@ namespace Mastersign.Tasks.Test
             w.WriteLine("}");
         }
 
-        public static void RenderGraph(string targetPngFile, 
+        public static void RenderGraph(string targetPngFile,
             List<TestTask> tasks, Dictionary<TestTask, TaskState> taskStates = null,
             IAttributeValueSelector colorSelector = null,
             IAttributeValueSelector shapeSelector = null)
@@ -191,16 +191,17 @@ namespace Mastersign.Tasks.Test
             Process.Start(tmpFile);
         }
 
-        private static IEnumerable<Dictionary<TestTask, TaskState>> RebuildTaskState(List<TestTask> tasks, EventMonitor<TaskManager> tmMon)
+        private static IEnumerable<Dictionary<TestTask, TaskState>> RebuildTaskState(List<TestTask> tasks, TaskGraphMonitor tgMon)
         {
-            var taskEvents = tmMon.FilterHistory(
-                ByEventName(nameof(TaskManager.TaskBegin), nameof(TaskManager.TaskEnd)));
             var taskStates = tasks.ToDictionary(t => t, t => TaskState.Waiting);
-            foreach (var er in taskEvents)
+            foreach (var er in tgMon.History)
             {
-                var ea = (TaskEventArgs)er.EventArgs;
-                taskStates[(TestTask)ea.Task] = ea.State;
-                yield return taskStates;
+                var ea = er.EventArgs as TaskEventArgs;
+                if (ea != null)
+                {
+                    taskStates[(TestTask)ea.Task] = ea.State;
+                    yield return taskStates;
+                }
             }
         }
 
@@ -210,11 +211,11 @@ namespace Mastersign.Tasks.Test
             Gif
         }
 
-        public static void RenderTaskGraphAnimation(List<TestTask> tasks, EventMonitor<TaskManager> tmMon,
-            string outputFile, VideoFormat format = VideoFormat.AviMjpeg, 
+        public static void RenderTaskGraphAnimation(List<TestTask> tasks, TaskGraphMonitor tgMon,
+            string outputFile, VideoFormat format = VideoFormat.AviMjpeg,
             int maxWidth = 1280, float fps = 2)
         {
-            var taskStateGenerations = RebuildTaskState(tasks, tmMon);
+            var taskStateGenerations = RebuildTaskState(tasks, tgMon);
             var colorSelector = new ByTaskStateSelector(TASK_STATE_COLORS);
             var shapeSelector = new ByQueueSelector(tasks, SHAPES, new Random(0));
 

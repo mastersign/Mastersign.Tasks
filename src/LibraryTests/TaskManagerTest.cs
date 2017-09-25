@@ -136,7 +136,7 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
-        //[Ignore]
+        [Ignore]
         public void TaskGenerationTest()
         {
             var rand = new Random(1);
@@ -149,22 +149,22 @@ namespace Mastersign.Tasks.Test
             => WithTaskManager(MultiTaskBeforeStart, MultiTaskAfterFinish,
                 Tuple.Create("A", 1), Tuple.Create("B", 3), Tuple.Create("C", 5));
 
-        private EventMonitor<ITask>[] MultiTaskBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
+        private TaskGraphMonitor MultiTaskBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {
             var rand = new Random(10);
             var queueTags = new[] { "A", "B", "C" };
             var tasks = TestTaskFactory.CreateMeshedCascade(rand,
                 count: 50, levels: 10, minDeps: 1, maxDeps: 3,
                 queueTags: queueTags);
-            var taskMons = tasks.Select(t => new EventMonitor<ITask>(t)).ToArray();
+            var tgMon = new TaskGraphMonitor(tasks);
 
             tm.AddTasks(tasks);
             AssertState(tm, isDisposed: false, isRunning: false);
-            return taskMons;
+            return tgMon;
         }
 
-        private void MultiTaskAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon, 
-            EventMonitor<ITask>[] taskMons)
+        private void MultiTaskAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
+            TaskGraphMonitor tgMon)
         {
             var queueTags = new[] { "A", "B", "C" };
 
@@ -179,10 +179,10 @@ namespace Mastersign.Tasks.Test
                 .AssertPropertyValuesInSet(possibleWorkerLineBusyCounts)
                 .AssertPropertyValuesOccured(possibleWorkerLineBusyCounts);
 
-            Assert.AreEqual(taskMons.Length, tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskBegin))).Count);
-            Assert.AreEqual(taskMons.Length, tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskEnd))).Count);
+            Assert.AreEqual(tgMon.Tasks.Count, tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskBegin))).Count);
+            Assert.AreEqual(tgMon.Tasks.Count, tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskEnd))).Count);
 
-            foreach (var taskMon in taskMons)
+            foreach (var taskMon in tgMon.TaskMonitors)
             {
                 taskMon.History.AssertSender(taskMon.Target);
                 taskMon.FilterHistory(ByPropertyChanges<TaskState>(nameof(ITask.State)))
@@ -191,39 +191,43 @@ namespace Mastersign.Tasks.Test
                         TaskState.CleaningUp,
                         TaskState.Succeeded);
             }
+
+            tgMon.AssertTaskEventsRespectDependencies();
         }
 
         [TestMethod]
+        [Ignore]
         public void RenderProcessingTest()
             => WithTaskManager(RenderProcessingBeforeStart, RenderProcessingAfterFinish,
         Tuple.Create("A", 1), Tuple.Create("B", 2), Tuple.Create("C", 3));
 
-        private EventMonitor<ITask>[] RenderProcessingBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
+        private TaskGraphMonitor RenderProcessingBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {
             var rand = new Random(0);
             var queueTags = new[] { "A", "B", "C" };
             var tasks = TestTaskFactory.CreateMeshedCascade(rand,
                 count: 40, levels: 20, minDeps: 1, maxDeps: 2,
                 queueTags: queueTags);
-            var taskMons = tasks.Select(t => new EventMonitor<ITask>(t)).ToArray();
+            var tgMon = new TaskGraphMonitor(tasks);
 
             Console.WriteLine("Rendering the task graph image");
             TaskGraphRenderer.DisplayGraph(tasks);
 
             tm.AddTasks(tasks);
-            return taskMons;
+            return tgMon;
         }
 
         private void RenderProcessingAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
-            EventMonitor<ITask>[] taskMons)
+            TaskGraphMonitor tgMon)
         {
             Console.WriteLine("Rendering the task graph processing animation");
-            TaskGraphRenderer.RenderTaskGraphAnimation(taskMons.Select(m => (TestTask)m.Target).ToList(), tmMon,
+            TaskGraphRenderer.RenderTaskGraphAnimation(tgMon.Tasks, tgMon,
                 System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
                     "task_graph_animation.avi"),
-                maxWidth: 1024, format: TaskGraphRenderer.VideoFormat.AviMjpeg);
-        }
+                maxWidth: 1024, format: TaskGraphRenderer.VideoFormat.AviMjpeg, fps: 3.3333f);
 
+            tgMon.AssertTaskEventsRespectDependencies();
+        }
     }
 }

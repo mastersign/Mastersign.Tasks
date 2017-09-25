@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Mastersign.Tasks.Test
 {
-    class TestTask : TaskBase
+    public class TestTask : TaskBase
     {
         public string Label { get; }
 
@@ -20,5 +20,13 @@ namespace Mastersign.Tasks.Test
         }
 
         public void AddDependency(ITask task) => base.DependencyList.Add(task);
+
+        public event EventHandler<TaskEventArgs> StateChanging;
+
+        protected override void OnStateChanged()
+        {
+            StateChanging?.Invoke(this, new TaskEventArgs(this));
+            base.OnStateChanged();
+        }
     }
 }

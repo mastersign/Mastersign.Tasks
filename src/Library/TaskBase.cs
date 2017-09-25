@@ -33,7 +33,7 @@ namespace Mastersign.Tasks
 
         public event EventHandler ProgressChanged;
 
-        protected void OnProgressChanged()
+        protected virtual void OnProgressChanged()
         {
             ProgressChanged?.Invoke(this, EventArgs.Empty);
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Progress)));
@@ -53,7 +53,7 @@ namespace Mastersign.Tasks
 
         public event EventHandler ProgressMessageChanged;
 
-        private void OnProgressMessageChanged()
+        protected virtual void OnProgressMessageChanged()
         {
             ProgressMessageChanged?.Invoke(this, EventArgs.Empty);
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProgressMessage)));
@@ -117,7 +117,7 @@ namespace Mastersign.Tasks
 
         public event EventHandler StateChanged;
 
-        private void OnStateChanged()
+        protected virtual void OnStateChanged()
         {
             StateChanged?.Invoke(this, EventArgs.Empty);
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(State)));
@@ -136,7 +136,7 @@ namespace Mastersign.Tasks
 
         public event EventHandler ErrorMessageChanged;
 
-        private void OnErrorMessageChanged()
+        protected virtual void OnErrorMessageChanged()
         {
             ErrorMessageChanged?.Invoke(this, EventArgs.Empty);
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ErrorMessage)));
@@ -156,7 +156,7 @@ namespace Mastersign.Tasks
 
         public event EventHandler ErrorChanged;
 
-        private void OnErrorChanged()
+        protected virtual void OnErrorChanged()
         {
             ErrorChanged?.Invoke(this, EventArgs.Empty);
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Error)));

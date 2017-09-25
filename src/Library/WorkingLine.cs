@@ -39,11 +39,11 @@ namespace Mastersign.Tasks
                 var thread = new WorkerThread(_queue, factory.Create(), $"{queueTag}_{i:0000}");
                 _threadBusy[thread] = false;
                 _threads.Add(thread);
-                thread.BusyChanged += ThreadWorkerBusyChangedHandler;
-                thread.TaskRejected += ThreadWorkerTaskRejectedHandler;
-                thread.WorkerError += ThreadWorkerErrorHandler;
-                thread.TaskBegin += ThreadWorkerTaskBeginHandler;
-                thread.TaskEnd += ThreadWorkerTaskEndHandler;
+                thread.BusyChanged += WorkerThreadBusyChangedHandler;
+                thread.TaskRejected += WorkerThreadTaskRejectedHandler;
+                thread.WorkerError += WorkerThreadErrorHandler;
+                thread.TaskBegin += WorkerThreadTaskBeginHandler;
+                thread.TaskEnd += WorkerThreadTaskEndHandler;
             }
         }
 
@@ -69,7 +69,7 @@ namespace Mastersign.Tasks
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusyWorkerCount)));
         }
 
-        private void ThreadWorkerBusyChangedHandler(object sender, EventArgs e)
+        private void WorkerThreadBusyChangedHandler(object sender, EventArgs e)
         {
             var thread = (WorkerThread)sender;
             lock (_threadBusy)
@@ -88,28 +88,28 @@ namespace Mastersign.Tasks
             }
         }
 
-        private void ThreadWorkerTaskRejectedHandler(object sender, TaskRejectedEventArgs e)
+        private void WorkerThreadTaskRejectedHandler(object sender, TaskRejectedEventArgs e)
         {
             TaskRejected?.Invoke(this, e);
         }
 
         public event EventHandler<TaskRejectedEventArgs> TaskRejected;
 
-        private void ThreadWorkerErrorHandler(object sender, WorkerErrorEventArgs e)
+        private void WorkerThreadErrorHandler(object sender, WorkerErrorEventArgs e)
         {
             WorkerError?.Invoke(this, e);
         }
 
         public event EventHandler<WorkerErrorEventArgs> WorkerError;
 
-        private void ThreadWorkerTaskBeginHandler(object sender, TaskEventArgs e)
+        private void WorkerThreadTaskBeginHandler(object sender, TaskEventArgs e)
         {
             TaskBegin?.Invoke(this, e);
         }
 
         public event EventHandler<TaskEventArgs> TaskBegin;
 
-        private void ThreadWorkerTaskEndHandler(object sender, TaskEventArgs e)
+        private void WorkerThreadTaskEndHandler(object sender, TaskEventArgs e)
         {
             TaskEnd?.Invoke(this, e);
         }

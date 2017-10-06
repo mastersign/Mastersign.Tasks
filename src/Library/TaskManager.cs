@@ -132,7 +132,7 @@ namespace Mastersign.Tasks
         public int BusyWorkingLinesCount
         {
             get => _busyWorkingLinesCount;
-            set
+            private set
             {
                 if (_busyWorkingLinesCount == value) return;
                 var oldValue = _busyWorkingLinesCount;

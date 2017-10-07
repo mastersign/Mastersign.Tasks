@@ -229,33 +229,49 @@ namespace Mastersign.Tasks.Test
                 (tm, tmMon, tgMon) => RenderAfterFinish(tm, tmMon, tgMon, "multitask"),
                 Tuple.Create("A", 1), Tuple.Create("B", 2), Tuple.Create("C", 3));
 
-        private TaskGraphMonitor RenderProcessingBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
+        [TestMethod]
+        public void CancellationTest()
+            => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
+                Tuple.Create("A", 1));
+
+        private TaskGraphMonitor CancellationBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {
-            var rand = new Random(0);
-            var queueTags = new[] { "A", "B", "C" };
-            var tasks = TestTaskFactory.CreateMeshedCascade(rand,
-                count: 40, levels: 20, minDeps: 1, maxDeps: 2,
-                queueTags: queueTags);
-            var tgMon = new TaskGraphMonitor(tasks);
+            var tgMon = InitializeWithTasks(tm);
 
-            Console.WriteLine("Rendering the task graph image");
-            TaskGraphRenderer.DisplayGraph(tasks);
+            // find a task with responsibilities and dependencies
+            var cancelTask = TestTaskFactory.TasksWithResponsibilities(tgMon.Tasks).FirstOrDefault();
+            Assert.IsNotNull(cancelTask);
+            // cancel the task manager as soon as this task gets worked on
+            cancelTask.StateChanged += (sender, a) =>
+            {
+                if (cancelTask.State == TaskState.InProgress) tm.Cancel();
+            };
 
-            tm.AddTasks(tasks);
             return tgMon;
         }
 
-        private void RenderProcessingAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
+        private void CancellationAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
             TaskGraphMonitor tgMon)
         {
-            Console.WriteLine("Rendering the task graph processing animation");
-            TaskGraphRenderer.RenderTaskGraphAnimation(tgMon.Tasks, tgMon,
-                System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                    "task_graph_animation.avi"),
-                maxWidth: 1024, format: TaskGraphRenderer.VideoFormat.AviMjpeg, fps: 3.333f);
-
-            tgMon.AssertTaskEventsRespectDependencies();
+            Assert.IsFalse(tgMon.Tasks.Where(t => t.State == TaskState.Waiting).Any(),
+                "Some tasks are still waiting.");
+            Assert.IsFalse(tgMon.Tasks.Where(t => t.State == TaskState.InProgress).Any(),
+                "Some tasks are still in progress.");
+            Assert.IsFalse(tgMon.Tasks.Where(t => t.State == TaskState.CleaningUp).Any(),
+                "Some tasks are still in clean-up state.");
+            Assert.IsTrue(tgMon.Tasks.Where(t => t.State == TaskState.Succeeded).Any(),
+                "No tasks succeeded.");
+            Assert.IsTrue(tgMon.Tasks.Where(t => t.State == TaskState.Canceled).Any(),
+                "No task was cancelled.");
+            Assert.IsTrue(tgMon.Tasks.Where(t => t.State == TaskState.Obsolete).Any(),
+                "No task got obsolete.");
         }
+
+        [TestMethod]
+        public void RenderCancellationTest()
+            => WithTaskManager(CancellationBeforeStart, 
+                (tm, tmMon, tgMon) => RenderAfterFinish(tm, tmMon, tgMon, "cancellation"),
+            Tuple.Create("A", 1));
+
     }
 }

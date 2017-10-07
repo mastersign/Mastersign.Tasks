@@ -11,7 +11,7 @@ namespace Mastersign.Tasks
             var tasks = DequeueAll();
             foreach (var t in tasks)
             {
-                t.UpdateState(TaskState.Canceled);
+                t.UpdateState(TaskState.Obsolete);
             }
         }
     }

@@ -13,6 +13,12 @@ namespace Mastersign.Tasks.Test
     [TestClass]
     public class TaskManagerTest
     {
+        private const int DEF_RAND_INIT = 0;
+        private const int DEF_TASK_COUNT = 40;
+        private const int DEF_TASK_LEVELS = 20;
+        private const int DEF_TASK_MIN_DEPS = 1;
+        private const int DEF_TASK_MAX_DEPS = 2;
+
         private void AssertState(TaskManager tm, bool isDisposed, bool isRunning)
         {
             Assert.AreEqual(isDisposed, tm.IsDisposed);
@@ -29,6 +35,21 @@ namespace Mastersign.Tasks.Test
             AssertState(tm, isDisposed: false, isRunning: false);
             Assert.AreEqual(workingLineDescriptions.Length, tm.WorkingLines.Count);
             return tm;
+        }
+
+        private TaskGraphMonitor InitializeWithTasks(TaskManager tm,
+            int randInit = DEF_RAND_INIT,
+            int count = DEF_TASK_COUNT, int levels = DEF_TASK_LEVELS,
+            int minDeps = DEF_TASK_MIN_DEPS, int maxDeps = DEF_TASK_MAX_DEPS)
+        {
+            var rand = new Random(randInit);
+            var queueTags = (from wl in tm.WorkingLines select wl.QueueTag).ToArray();
+            var tasks = TestTaskFactory.CreateMeshedCascade(rand,
+                count: count, levels: levels, minDeps: minDeps, maxDeps: maxDeps,
+                queueTags: queueTags);
+            var tgMon = new TaskGraphMonitor(tasks);
+            tm.AddTasks(tasks);
+            return tgMon;
         }
 
         private void WithTaskManager<T>(
@@ -144,6 +165,19 @@ namespace Mastersign.Tasks.Test
             TaskGraphRenderer.DisplayGraph(tasks);
         }
 
+        private void RenderAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
+            TaskGraphMonitor tgMon, string fileName)
+        {
+            Console.WriteLine("Rendering the task graph processing animation");
+            TaskGraphRenderer.RenderTaskGraphAnimation(tgMon.Tasks, tgMon,
+                System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                    fileName + ".avi"),
+                maxWidth: 1024, format: TaskGraphRenderer.VideoFormat.AviMjpeg, fps: 3.333f);
+
+            tgMon.AssertTaskEventsRespectDependencies();
+        }
+
         [TestMethod]
         public void MultiTaskTest()
             => WithTaskManager(MultiTaskBeforeStart, MultiTaskAfterFinish,
@@ -151,14 +185,7 @@ namespace Mastersign.Tasks.Test
 
         private TaskGraphMonitor MultiTaskBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {
-            var rand = new Random(10);
-            var queueTags = new[] { "A", "B", "C" };
-            var tasks = TestTaskFactory.CreateMeshedCascade(rand,
-                count: 50, levels: 10, minDeps: 1, maxDeps: 3,
-                queueTags: queueTags);
-            var tgMon = new TaskGraphMonitor(tasks);
-
-            tm.AddTasks(tasks);
+            var tgMon = InitializeWithTasks(tm);
             AssertState(tm, isDisposed: false, isRunning: false);
             return tgMon;
         }
@@ -197,9 +224,10 @@ namespace Mastersign.Tasks.Test
 
         [TestMethod]
         [Ignore]
-        public void RenderProcessingTest()
-            => WithTaskManager(RenderProcessingBeforeStart, RenderProcessingAfterFinish,
-        Tuple.Create("A", 1), Tuple.Create("B", 2), Tuple.Create("C", 3));
+        public void RenderMultiTaskTest()
+            => WithTaskManager(MultiTaskBeforeStart,
+                (tm, tmMon, tgMon) => RenderAfterFinish(tm, tmMon, tgMon, "multitask"),
+                Tuple.Create("A", 1), Tuple.Create("B", 2), Tuple.Create("C", 3));
 
         private TaskGraphMonitor RenderProcessingBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {

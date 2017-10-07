@@ -11,6 +11,8 @@ namespace Mastersign.Tasks
 
         ITask[] Dependencies { get; }
 
+        bool HasDependencies { get; }
+
         float Progress { get; }
 
         event EventHandler ProgressChanged;

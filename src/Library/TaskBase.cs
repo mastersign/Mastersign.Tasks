@@ -167,6 +167,8 @@ namespace Mastersign.Tasks
 
         public ITask[] Dependencies => _dependencies.ToArray();
 
+        public bool HasDependencies => _dependencies.Count > 0;
+
         public void UpdateProgress(string message, float progress)
         {
             Progress = progress;

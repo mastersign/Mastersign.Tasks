@@ -268,6 +268,7 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
+        [Ignore]
         public void RenderCancellationTest()
             => WithTaskManager(CancellationBeforeStart, 
                 (tm, tmMon, tgMon) => RenderAfterFinish(tm, tmMon, tgMon, "cancellation"),

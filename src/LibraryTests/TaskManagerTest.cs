@@ -230,9 +230,14 @@ namespace Mastersign.Tasks.Test
                 Tuple.Create("A", 1), Tuple.Create("B", 2), Tuple.Create("C", 3));
 
         [TestMethod]
-        public void CancellationTest()
+        public void SequentialCancellationTest()
             => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
                 Tuple.Create("A", 1));
+
+        [TestMethod]
+        public void ParallelCancellationTest()
+            => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
+                Tuple.Create("A", 4));
 
         private TaskGraphMonitor CancellationBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {

@@ -36,5 +36,11 @@ namespace Mastersign.Tasks.Test
             }
             return tasks;
         }
+
+        public static IEnumerable<TestTask> TasksWithResponsibilities(List<TestTask> tasks) 
+            => tasks.Where(t => TaskHelper.Responsibilities(t, tasks).Any());
+
+        public static IEnumerable<TestTask> InnerTasks(List<TestTask> tasks)
+            => TasksWithResponsibilities(tasks).Where(t => t.HasDependencies);
     }
 }

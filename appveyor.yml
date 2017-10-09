@@ -1,0 +1,21 @@
+version: 0.1.{build}
+
+# Build for every push
+skip_tags: false
+skip_non_tags: false
+
+image: Visual Studio 2015
+init:
+  - git config --global core.autocrlf input
+cache:
+  - packages -> **\packages.config
+platform: Any CPU
+configuration:
+  - Release
+build:
+  project: src\Mastersign.Tasks.sln
+verbosity: normal
+test:
+  categories:
+    except:
+	  - Rendering

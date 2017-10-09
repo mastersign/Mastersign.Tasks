@@ -13,6 +13,7 @@ platform: Any CPU
 configuration:
 - Release
 before_build:
+- cd src
 - nuget restore
 build:
   project: src\Mastersign.Tasks.sln

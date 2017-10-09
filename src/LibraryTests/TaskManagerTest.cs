@@ -114,10 +114,10 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
-        public void MinimalTaskTest()
-            => WithTaskManager(MinimalTaskTestBeforeStart, MinimalTaskTestAfterFinish, Tuple.Create("A", 1));
+        public void SingleTaskTest()
+            => WithTaskManager(SingleTaskTestBeforeStart, SingleTaskTestAfterFinish, Tuple.Create("A", 1));
 
-        private EventMonitor<TestTask> MinimalTaskTestBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
+        private EventMonitor<TestTask> SingleTaskTestBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {
             var task = new TestTask("single", "A");
             var taskMon = new EventMonitor<TestTask>(task);
@@ -128,7 +128,7 @@ namespace Mastersign.Tasks.Test
             return taskMon;
         }
 
-        private void MinimalTaskTestAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
+        private void SingleTaskTestAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
             EventMonitor<TestTask> taskMon)
         {
             AssertState(tm, isDisposed: false, isRunning: false);
@@ -157,11 +157,14 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
+        [TestCategory("Rendering")]
         [Ignore]
-        public void TaskGenerationTest()
+        public void RenderDefaultMultiQueueGraphTest()
         {
-            var rand = new Random(1);
-            var tasks = TestTaskFactory.CreateMeshedCascade(rand, 50, 8, 1, 3, "A", "B", "C");
+            var rand = new Random(DEF_RAND_INIT);
+            var tasks = TestTaskFactory.CreateMeshedCascade(rand, 
+                DEF_TASK_COUNT, DEF_TASK_LEVELS, DEF_TASK_MIN_DEPS, DEF_TASK_MAX_DEPS, 
+                "A", "B", "C");
             TaskGraphRenderer.DisplayGraph(tasks);
         }
 
@@ -179,21 +182,36 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
-        public void MultiTaskTest()
-            => WithTaskManager(MultiTaskBeforeStart, MultiTaskAfterFinish,
-                Tuple.Create("A", 1), Tuple.Create("B", 3), Tuple.Create("C", 5));
+        public void SequentialTaskTest()
+            => WithTaskManager(GeneralTasksBeforeStart, GeneralTasksAfterFinish,
+                Tuple.Create("A", 1));
 
-        private TaskGraphMonitor MultiTaskBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
+        [TestMethod]
+        public void ParallelTaskTest()
+            => WithTaskManager(GeneralTasksBeforeStart, GeneralTasksAfterFinish,
+                Tuple.Create("A", 4));
+
+        [TestMethod]
+        public void MultiQueueSequentialTaskTest()
+            => WithTaskManager(GeneralTasksBeforeStart, GeneralTasksAfterFinish,
+                Tuple.Create("A", 1), Tuple.Create("B", 1), Tuple.Create("C", 1));
+
+        [TestMethod]
+        public void MultiQueueParallelTaskTest()
+            => WithTaskManager(GeneralTasksBeforeStart, GeneralTasksAfterFinish,
+                Tuple.Create("A", 2), Tuple.Create("B", 3), Tuple.Create("C", 4));
+
+        private TaskGraphMonitor GeneralTasksBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {
             var tgMon = InitializeWithTasks(tm);
             AssertState(tm, isDisposed: false, isRunning: false);
             return tgMon;
         }
 
-        private void MultiTaskAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
+        private void GeneralTasksAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
             TaskGraphMonitor tgMon)
         {
-            var queueTags = new[] { "A", "B", "C" };
+            var queueTags = tm.WorkingLines.Select(wl => wl.QueueTag).ToArray();
 
             AssertState(tm, isDisposed: false, isRunning: false);
             tmMon.History.AssertSender(tm);
@@ -223,9 +241,10 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
+        [TestCategory("Rendering")]
         [Ignore]
-        public void RenderMultiTaskTest()
-            => WithTaskManager(MultiTaskBeforeStart,
+        public void RenderMultiQueueParallelTaskTest()
+            => WithTaskManager(GeneralTasksBeforeStart,
                 (tm, tmMon, tgMon) => RenderAfterFinish(tm, tmMon, tgMon, "multitask"),
                 Tuple.Create("A", 1), Tuple.Create("B", 2), Tuple.Create("C", 3));
 
@@ -238,6 +257,16 @@ namespace Mastersign.Tasks.Test
         public void ParallelCancellationTest()
             => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
                 Tuple.Create("A", 4));
+
+        [TestMethod]
+        public void MultiQueueSequentialCancellationTest()
+            => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
+                Tuple.Create("A", 1), Tuple.Create("B", 1), Tuple.Create("C", 1));
+
+        [TestMethod]
+        public void MultiQueueParallelCancellationTest()
+            => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
+                Tuple.Create("A", 2), Tuple.Create("B", 3), Tuple.Create("C", 4));
 
         private TaskGraphMonitor CancellationBeforeStart(TaskManager tm, EventMonitor<TaskManager> tmMon)
         {
@@ -273,8 +302,9 @@ namespace Mastersign.Tasks.Test
         }
 
         [TestMethod]
+        [TestCategory("Rendering")]
         [Ignore]
-        public void RenderCancellationTest()
+        public void RenderSequentialCancellationTest()
             => WithTaskManager(CancellationBeforeStart, 
                 (tm, tmMon, tgMon) => RenderAfterFinish(tm, tmMon, tgMon, "cancellation"),
             Tuple.Create("A", 1));

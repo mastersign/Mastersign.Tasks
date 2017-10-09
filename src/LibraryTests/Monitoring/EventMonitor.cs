@@ -60,12 +60,12 @@ namespace Mastersign.Tasks.Test.Monitors
                             }
                             EventHandler(e.Name, sender, ea, vu);
                         }));
-                        Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to property changes on {e.Name}");
+                        Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to property changes on {e.Name}");
                     }
                     else
                     {
                         e.AddEventHandler(Target, (EventHandler)((sender, ea) => EventHandler(e.Name, sender, ea)));
-                        Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to {e.Name}");
+                        Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to {e.Name}");
                     }
                 }
                 else if (eht.IsGenericType && eht.GetGenericTypeDefinition() == typeof(EventHandler<>))
@@ -75,18 +75,18 @@ namespace Mastersign.Tasks.Test.Monitors
                     {
                         var handlerTarget = new GenericPropertyUpdateEventHandlerTarget(this, e);
                         e.AddEventHandler(Target, handlerTarget.GetHandlerDelegate());
-                        Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to property updates on {e.Name}");
+                        Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to property updates on {e.Name}");
                     }
                     else
                     {
                         var handlerTarget = new GenericEventHandlerTarget(this, e);
                         e.AddEventHandler(Target, handlerTarget.GetHandlerDelegate());
-                        Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to generic {e.Name}");
+                        Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: listening to generic {e.Name}");
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: NOT listening to {e.Name}");
+                    Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: NOT listening to {e.Name}");
                 }
             }
         }
@@ -154,7 +154,7 @@ namespace Mastersign.Tasks.Test.Monitors
             }
             if (LogEvents)
             {
-                Console.WriteLine($"EventMonitor<{typeof(T).FullName}>: caught event from {eventName}");
+                Debug.WriteLine($"EventMonitor<{typeof(T).FullName}>: caught event from {eventName}");
             }
             CaughtEvent?.Invoke(this, new EventRecordEventArgs(record));
         }

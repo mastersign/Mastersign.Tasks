@@ -12,6 +12,8 @@ cache:
 platform: Any CPU
 configuration:
 - Release
+before_build:
+- nuget restore
 build:
   project: src\Mastersign.Tasks.sln
   verbosity: normal

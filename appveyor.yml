@@ -6,16 +6,16 @@ skip_non_tags: false
 
 image: Visual Studio 2015
 init:
-  - git config --global core.autocrlf input
+- git config --global core.autocrlf input
 cache:
-  - packages -> **\packages.config
+- packages -> **\packages.config
 platform: Any CPU
 configuration:
-  - Release
+- Release
 build:
   project: src\Mastersign.Tasks.sln
-verbosity: normal
+  verbosity: normal
 test:
   categories:
     except:
-	  - Rendering
+    - Rendering

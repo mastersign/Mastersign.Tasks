@@ -19,6 +19,9 @@ build:
   project: src\Mastersign.Tasks.sln
   verbosity: normal
 test:
+  assemblies:
+    only:
+    - 'bin\Release\Mastersign.Tasks.Test.dll'
   categories:
     except:
     - Rendering

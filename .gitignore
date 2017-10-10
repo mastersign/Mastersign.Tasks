@@ -5,5 +5,7 @@ Thumbs.db
 bin/
 obj/
 packages/
-/src/TestResults/
+TestResults/
 .vs/
+/bin
+/tmp

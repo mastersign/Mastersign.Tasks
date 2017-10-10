@@ -113,7 +113,7 @@ namespace Mastersign.Tasks
             ITask task = null;
             while (!_cancelationToken.IsCanceled && !_queue.IsDisposed && !IsDisposed)
             {
-                while (_queue.TryDequeue(ref task))
+                while (!_cancelationToken.IsCanceled && _queue.TryDequeue(ref task))
                 {
                     var taskState = task.State;
                     if (taskState != TaskState.Waiting)

@@ -38,7 +38,7 @@ namespace Mastersign.Tasks.Test
             {
                 stateChangedCount++;
                 stateChangedSender = sender;
-                states.Add(((ITask)sender).State);
+                states.Add(e.NewValue);
             };
 
             t.State = TaskState.InProgress;

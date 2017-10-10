@@ -25,17 +25,18 @@ namespace Mastersign.Tasks
             {
                 var newProgress = Math.Max(0f, Math.Min(1f, value));
                 if (Math.Abs(_progress - newProgress) < float.Epsilon && progressSend) return;
+                var oldProgress = _progress;
                 _progress = newProgress;
-                OnProgressChanged();
+                OnProgressChanged(oldProgress, newProgress);
                 progressSend = true;
             }
         }
 
-        public event EventHandler ProgressChanged;
+        public event EventHandler<PropertyUpdateEventArgs<float>> ProgressChanged;
 
-        protected virtual void OnProgressChanged()
+        protected virtual void OnProgressChanged(float oldValue, float newValue)
         {
-            ProgressChanged?.Invoke(this, EventArgs.Empty);
+            ProgressChanged?.Invoke(this, new PropertyUpdateEventArgs<float>(nameof(Progress), oldValue, newValue));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Progress)));
         }
 
@@ -46,16 +47,17 @@ namespace Mastersign.Tasks
             set
             {
                 if (string.Equals(_progressMessage, value)) return;
+                var oldProgressMessage = _progressMessage;
                 _progressMessage = value;
-                OnProgressMessageChanged();
+                OnProgressMessageChanged(oldProgressMessage, value);
             }
         }
 
-        public event EventHandler ProgressMessageChanged;
+        public event EventHandler<PropertyUpdateEventArgs<string>> ProgressMessageChanged;
 
-        protected virtual void OnProgressMessageChanged()
+        protected virtual void OnProgressMessageChanged(string oldValue, string newValue)
         {
-            ProgressMessageChanged?.Invoke(this, EventArgs.Empty);
+            ProgressMessageChanged?.Invoke(this, new PropertyUpdateEventArgs<string>(nameof(ProgressMessage), oldValue, newValue));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProgressMessage)));
         }
 
@@ -66,6 +68,7 @@ namespace Mastersign.Tasks
             get => _state;
             set
             {
+                var oldState = _state;
                 lock (stateLock)
                 {
                     if (_state == value) return;
@@ -111,15 +114,15 @@ namespace Mastersign.Tasks
                     }
                     _state = value;
                 }
-                OnStateChanged();
+                OnStateChanged(oldState, value);
             }
         }
 
-        public event EventHandler StateChanged;
+        public event EventHandler<PropertyUpdateEventArgs<TaskState>> StateChanged;
 
-        protected virtual void OnStateChanged()
+        protected virtual void OnStateChanged(TaskState oldValue, TaskState newValue)
         {
-            StateChanged?.Invoke(this, EventArgs.Empty);
+            StateChanged?.Invoke(this, new PropertyUpdateEventArgs<TaskState>(nameof(State), oldValue, newValue));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(State)));
         }
 
@@ -129,16 +132,17 @@ namespace Mastersign.Tasks
             set
             {
                 if (string.Equals(_errorMessage, value)) return;
+                var oldErrorMessage = _errorMessage;
                 _errorMessage = value;
-                OnErrorMessageChanged();
+                OnErrorMessageChanged(oldErrorMessage, value);
             }
         }
 
-        public event EventHandler ErrorMessageChanged;
+        public event EventHandler<PropertyUpdateEventArgs<string>> ErrorMessageChanged;
 
-        protected virtual void OnErrorMessageChanged()
+        protected virtual void OnErrorMessageChanged(string oldValue, string newValue)
         {
-            ErrorMessageChanged?.Invoke(this, EventArgs.Empty);
+            ErrorMessageChanged?.Invoke(this, new PropertyUpdateEventArgs<string>(nameof(ErrorMessage), oldValue, newValue));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ErrorMessage)));
         }
 
@@ -149,16 +153,17 @@ namespace Mastersign.Tasks
             set
             {
                 if (_error == value) return;
+                var oldError = _error;
                 _error = value;
-                OnErrorChanged();
+                OnErrorChanged(oldError, value);
             }
         }
 
-        public event EventHandler ErrorChanged;
+        public event EventHandler<PropertyUpdateEventArgs<Exception>> ErrorChanged;
 
-        protected virtual void OnErrorChanged()
+        protected virtual void OnErrorChanged(Exception oldValue, Exception newValue)
         {
-            ErrorChanged?.Invoke(this, EventArgs.Empty);
+            ErrorChanged?.Invoke(this, new PropertyUpdateEventArgs<Exception>(nameof(Error), oldValue, newValue));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Error)));
         }
 

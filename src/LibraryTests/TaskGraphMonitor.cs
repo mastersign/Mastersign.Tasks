@@ -28,7 +28,7 @@ namespace Mastersign.Tasks.Test
             }
         }
 
-        private void TaskStateChangingHandler(object sender, TaskEventArgs e)
+        private void TaskStateChangingHandler(object sender, PropertyUpdateEventArgs<TaskState> e)
         {
             var er = new EventRecord(nameof(TestTask.StateChanging), sender, e);
             lock (EventRecords)

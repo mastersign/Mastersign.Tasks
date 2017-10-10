@@ -275,9 +275,9 @@ namespace Mastersign.Tasks.Test
             var cancelTask = TestTaskFactory.TasksWithResponsibilities(tgMon.Tasks).FirstOrDefault();
             Assert.IsNotNull(cancelTask);
             // cancel the task manager as soon as this task gets worked on
-            cancelTask.StateChanged += (sender, a) =>
+            cancelTask.StateChanged += (sender, ea) =>
             {
-                if (cancelTask.State == TaskState.InProgress) tm.Cancel();
+                if (ea.NewValue == TaskState.InProgress) tm.Cancel();
             };
 
             return tgMon;

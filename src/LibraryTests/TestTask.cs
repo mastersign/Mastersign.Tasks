@@ -21,12 +21,12 @@ namespace Mastersign.Tasks.Test
 
         public void AddDependency(ITask task) => base.DependencyList.Add(task);
 
-        public event EventHandler<TaskEventArgs> StateChanging;
+        public event EventHandler<PropertyUpdateEventArgs<TaskState>> StateChanging;
 
-        protected override void OnStateChanged()
+        protected override void OnStateChanged(TaskState oldValue, TaskState newValue)
         {
-            StateChanging?.Invoke(this, new TaskEventArgs(this));
-            base.OnStateChanged();
+            StateChanging?.Invoke(this, new PropertyUpdateEventArgs<TaskState>(nameof(ITask.State), oldValue, newValue));
+            base.OnStateChanged(oldValue, newValue);
         }
     }
 }

@@ -90,8 +90,8 @@ namespace Mastersign.Tasks.Test
                     nameof(WorkingLine.BusyWorkerCountChanged),
                     nameof(WorkingLine.TaskBegin),
                     nameof(WorkingLine.TaskEnd),
-                    nameof(WorkingLine.BusyChanged),
-                    nameof(WorkingLine.BusyWorkerCountChanged));
+                    nameof(WorkingLine.BusyWorkerCountChanged),
+                    nameof(WorkingLine.BusyChanged));
             wlMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkingLine.Busy)))
                 .AssertPropertyValues(true, false);
             wlMon.FilterHistory(ByPropertyChanges<int>(nameof(WorkingLine.BusyWorkerCount)))

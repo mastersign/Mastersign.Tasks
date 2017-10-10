@@ -21,10 +21,10 @@ namespace Mastersign.Tasks
             IsReady = _incompleteDependencies.Count == 0;
         }
 
-        private void DependencyStateChangedHandler(object sender, EventArgs e)
+        private void DependencyStateChangedHandler(object sender, PropertyUpdateEventArgs<TaskState> e)
         {
             var dep = (ITask)sender;
-            var depState = dep.State;
+            var depState = e.NewValue;
             if (depState == TaskState.InProgress ||
                 depState == TaskState.CleaningUp ||
                 depState == TaskState.Canceled)

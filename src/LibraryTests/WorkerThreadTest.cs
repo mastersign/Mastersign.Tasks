@@ -213,9 +213,9 @@ namespace Mastersign.Tasks.Test
             var tasks = Enumerable.Range(0, 4).Select(i => new TestTask(i.ToString())).ToArray();
             var taskMons = tasks.Select(t => new EventMonitor<TestTask>(t)).ToArray();
             var cancelTask = tasks[1];
-            cancelTask.StateChanged += (s, e) =>
+            cancelTask.StateChanging += (s, e) =>
             {
-                if (cancelTask.State == TaskState.InProgress) wt.Cancel();
+                if (e.NewValue == TaskState.InProgress) wt.Cancel();
             };
 
             foreach (var task in tasks)

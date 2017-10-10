@@ -15,23 +15,23 @@ namespace Mastersign.Tasks
 
         float Progress { get; }
 
-        event EventHandler ProgressChanged;
+        event EventHandler<PropertyUpdateEventArgs<float>> ProgressChanged;
 
         string ProgressMessage { get; }
 
-        event EventHandler ProgressMessageChanged;
+        event EventHandler<PropertyUpdateEventArgs<string>> ProgressMessageChanged;
 
         TaskState State { get; }
 
-        event EventHandler StateChanged;
+        event EventHandler<PropertyUpdateEventArgs<TaskState>> StateChanged;
 
         string ErrorMessage { get; }
 
-        event EventHandler ErrorMessageChanged;
+        event EventHandler<PropertyUpdateEventArgs<string>> ErrorMessageChanged;
 
         Exception Error { get; }
 
-        event EventHandler ErrorChanged;
+        event EventHandler<PropertyUpdateEventArgs<Exception>> ErrorChanged;
 
         void UpdateState(TaskState newState);
 

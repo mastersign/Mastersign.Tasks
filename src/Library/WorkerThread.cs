@@ -30,11 +30,11 @@ namespace Mastersign.Tasks
 
         public bool IsAlive => _thread != null;
 
-        public event EventHandler IsAliveChanged;
+        public event EventHandler<PropertyUpdateEventArgs<bool>> IsAliveChanged;
 
-        private void OnIsAliveChanged()
+        private void OnIsAliveChanged(bool oldValue, bool newValue)
         {
-            IsAliveChanged?.Invoke(this, EventArgs.Empty);
+            IsAliveChanged?.Invoke(this, new PropertyUpdateEventArgs<bool>(nameof(IsAlive), oldValue, newValue));
         }
 
         public event EventHandler<TaskEventArgs> TaskBegin;
@@ -58,8 +58,9 @@ namespace Mastersign.Tasks
             private set
             {
                 if (_busy == value) return;
+                var oldValue = _busy;
                 _busy = value;
-                OnBusyChanged();
+                OnBusyChanged(oldValue, value);
                 if (_busy)
                     _busyEvent.Reset();
                 else
@@ -67,11 +68,11 @@ namespace Mastersign.Tasks
             }
         }
 
-        public event EventHandler BusyChanged;
+        public event EventHandler<PropertyUpdateEventArgs<bool>> BusyChanged;
 
-        private void OnBusyChanged()
+        private void OnBusyChanged(bool oldValue, bool newValue)
         {
-            BusyChanged?.Invoke(this, EventArgs.Empty);
+            BusyChanged?.Invoke(this, new PropertyUpdateEventArgs<bool>(nameof(Busy), oldValue, newValue));
         }
 
         private ITask _currentTask;
@@ -81,16 +82,17 @@ namespace Mastersign.Tasks
             set
             {
                 if (_currentTask == value) return;
+                var oldValue = _currentTask;
                 _currentTask = value;
-                OnCurrentTaskChanged();
+                OnCurrentTaskChanged(oldValue, value);
             }
         }
 
-        public event EventHandler CurrentTaskChanged;
+        public event EventHandler<PropertyUpdateEventArgs<ITask>> CurrentTaskChanged;
 
-        private void OnCurrentTaskChanged()
+        private void OnCurrentTaskChanged(ITask oldValue, ITask newValue)
         {
-            CurrentTaskChanged?.Invoke(this, EventArgs.Empty);
+            CurrentTaskChanged?.Invoke(this, new PropertyUpdateEventArgs<ITask>(nameof(CurrentTask), oldValue, newValue));
         }
 
         public string Name => nameof(WorkerThread) + (string.IsNullOrEmpty(_label) ? string.Empty : "_" + _label);
@@ -104,7 +106,7 @@ namespace Mastersign.Tasks
             _thread.Name = Name;
             _thread.Priority = ThreadPriority;
             _aliveEvent.Reset();
-            OnIsAliveChanged();
+            OnIsAliveChanged(false, true);
             _thread.Start();
         }
 
@@ -167,7 +169,7 @@ namespace Mastersign.Tasks
             Busy = false;
 
             _thread = null;
-            OnIsAliveChanged();
+            OnIsAliveChanged(true, false);
             _aliveEvent.Set();
         }
 

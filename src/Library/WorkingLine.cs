@@ -55,33 +55,43 @@ namespace Mastersign.Tasks
             private set
             {
                 if (_busyWorkerCount == value) return;
+                var oldValue = _busyWorkerCount;
                 _busyWorkerCount = value;
-                Busy = _busyWorkerCount > 0;
-                OnBusyWorkerCountChanged();
+                if (_busyWorkerCount > 0)
+                {
+                    Busy = true;
+                    OnBusyWorkerCountChanged(oldValue, value);
+                }
+                else
+                {
+                    OnBusyWorkerCountChanged(oldValue, value);
+                    Busy = false;
+                }
             }
         }
 
-        public event EventHandler BusyWorkerCountChanged;
+        public event EventHandler<PropertyUpdateEventArgs<int>> BusyWorkerCountChanged;
 
-        private void OnBusyWorkerCountChanged()
+        private void OnBusyWorkerCountChanged(int oldValue, int newValue)
         {
-            BusyWorkerCountChanged?.Invoke(this, EventArgs.Empty);
+            BusyWorkerCountChanged?.Invoke(this, new PropertyUpdateEventArgs<int>(nameof(BusyWorkerCount), oldValue, newValue));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusyWorkerCount)));
         }
 
-        private void WorkerThreadBusyChangedHandler(object sender, EventArgs e)
+        private void WorkerThreadBusyChangedHandler(object sender, PropertyUpdateEventArgs<bool> e)
         {
+            var threadIsBusy = e.NewValue;
             var thread = (WorkerThread)sender;
+            var count = 0;
             lock (_threadBusy)
             {
-                _threadBusy[thread] = thread.Busy;
-                var count = 0;
+                _threadBusy[thread] = threadIsBusy;
                 foreach (var busy in _threadBusy.Values)
                 {
                     if (busy) count++;
                 }
                 BusyWorkerCount = count;
-                if (thread.Busy)
+                if (threadIsBusy)
                 {
                     _workedEvent.Set();
                 }
@@ -123,8 +133,9 @@ namespace Mastersign.Tasks
             private set
             {
                 if (_busy == value) return;
+                var oldValue = _busy;
                 _busy = value;
-                OnBusyChanged();
+                OnBusyChanged(oldValue, value);
 
                 if (_busy)
                     _busyEvent.Reset();
@@ -133,11 +144,11 @@ namespace Mastersign.Tasks
             }
         }
 
-        public event EventHandler BusyChanged;
+        public event EventHandler<PropertyUpdateEventArgs<bool>> BusyChanged;
 
-        private void OnBusyChanged()
+        private void OnBusyChanged(bool oldValue, bool newValue)
         {
-            BusyChanged?.Invoke(this, EventArgs.Empty);
+            BusyChanged?.Invoke(this, new PropertyUpdateEventArgs<bool>(nameof(Busy), oldValue, newValue));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Busy)));
         }
 

@@ -81,15 +81,15 @@ namespace Mastersign.Tasks
 
         private void OnIsRunningChanged(bool oldValue, bool newValue)
         {
-            IsRunningChanged?.Invoke(this, 
+            IsRunningChanged?.Invoke(this,
                 new PropertyUpdateEventArgs<bool>(nameof(IsRunning), oldValue, newValue));
-            PropertyChanged?.Invoke(this, 
+            PropertyChanged?.Invoke(this,
                 new PropertyChangedEventArgs(nameof(IsRunning)));
         }
 
         private readonly object _workingLineBusyCountLock = new object();
 
-        private void WorkingLineBusyChangedHandler(object sender, EventArgs e)
+        private void WorkingLineBusyChangedHandler(object sender, PropertyUpdateEventArgs<bool> e)
         {
             var count = 0;
             lock (_workingLineBusyCountLock)
@@ -149,9 +149,9 @@ namespace Mastersign.Tasks
 
         private void OnBusyWorkingLinesCountChanged(int oldValue, int newValue)
         {
-            BusyWorkingLinesCountChanged?.Invoke(this, 
+            BusyWorkingLinesCountChanged?.Invoke(this,
                 new PropertyUpdateEventArgs<int>(nameof(BusyWorkingLinesCount), oldValue, newValue));
-            PropertyChanged?.Invoke(this, 
+            PropertyChanged?.Invoke(this,
                 new PropertyChangedEventArgs(nameof(BusyWorkingLinesCount)));
         }
 
@@ -315,8 +315,6 @@ namespace Mastersign.Tasks
 
             Debug.Assert(taskWatcher.IsReady,
                 "A task watcher was reported as ready, but it is not.");
-            Debug.Assert(taskWatcher.Task.State == TaskState.Waiting,
-                "A task watcher reported a non waiting task as ready.");
 
             taskWatcher.IsReadyChanged -= TaskIsReadyChangedHandler;
             lock (_taskWatchers)

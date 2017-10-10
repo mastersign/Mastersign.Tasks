@@ -228,6 +228,18 @@ namespace Mastersign.Tasks
 
         public void Cancel()
         {
+            // make tasks not yet queued obsolete
+            lock (_taskWatchers)
+            {
+                foreach (var taskWatcher in _taskWatchers)
+                {
+                    if (!taskWatcher.IsReady)
+                    {
+                        taskWatcher.Task.UpdateState(TaskState.Obsolete);
+                    }
+                }
+            }
+            // cancel queues
             foreach (var workingLine in _workingLines.Values)
             {
                 workingLine.Cancel();

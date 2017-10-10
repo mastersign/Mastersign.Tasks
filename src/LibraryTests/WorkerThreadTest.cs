@@ -201,8 +201,6 @@ namespace Mastersign.Tasks.Test
             }
         }
 
-        // TODO test worker error handling
-
         [TestMethod]
         public void CancellationTest()
             => WithWorkerThread(CancellationTestCase, expectStopped: true);
@@ -245,5 +243,7 @@ namespace Mastersign.Tasks.Test
                 nameof(WorkerThread.BusyChanged),
                 nameof(WorkerThread.IsAliveChanged));
         }
+
+        // TODO test worker error handling
     }
 }

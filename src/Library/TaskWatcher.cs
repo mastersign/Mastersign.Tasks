@@ -25,8 +25,8 @@ namespace Mastersign.Tasks
         {
             var dep = (ITask)sender;
             var depState = e.NewValue;
-            if (depState == TaskState.InProgress ||
-                depState == TaskState.CleaningUp)
+            if (depState != TaskState.Succeeded && 
+                depState != TaskState.Failed)
             {
                 return;
             }
@@ -44,11 +44,7 @@ namespace Mastersign.Tasks
                     }
                 }
             }
-            if (depState == TaskState.Canceled || depState == TaskState.Obsolete)
-            {
-                Task.UpdateState(TaskState.Obsolete, dep.Error);
-            }
-            else if (depState == TaskState.Failed)
+            if (depState == TaskState.Failed)
             {
                 Task.UpdateState(TaskState.Obsolete, new DependencyFailedException(dep));
             }

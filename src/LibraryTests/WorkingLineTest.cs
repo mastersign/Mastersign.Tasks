@@ -27,7 +27,7 @@ namespace Mastersign.Tasks.Test
 
         private void WithWorkingLine(Action<WorkingLine, EventMonitor<WorkingLine>> testCase, int worker = 1, bool started = true)
         {
-            var wl = CreateWorkingLine(3);
+            var wl = CreateWorkingLine(worker);
             var wlMon = new EventMonitor<WorkingLine>(wl);
 
             AssertState(wl, isDisposed: false, busy: false);

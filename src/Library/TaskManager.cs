@@ -68,8 +68,7 @@ namespace Mastersign.Tasks
                 Notify(OnIsRunningChanged, !_isRunning, _isRunning);
                 if (!_isRunning) Notify(Finished);
 
-                if (!_isRunning)
-                    _isRunningEvent.Set();
+                if (!_isRunning) _isRunningEvent.Set();
             }
         }
 

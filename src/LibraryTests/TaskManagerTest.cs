@@ -73,8 +73,7 @@ namespace Mastersign.Tasks.Test
             Thread.Sleep(100);
             Assert.IsTrue(finishedEvent.WaitOne(1000));
             finishedEvent.Close();
-
-
+            
             afterFinish.Invoke(tm, tmMon, cache);
 
             tmMon.ClearHistory();

@@ -15,5 +15,11 @@ namespace Mastersign.Tasks
             Task = task;
             State = task.State;
         }
+
+        public TaskEventArgs(ITask task, TaskState state)
+        {
+            Task = task;
+            State = state;
+        }
     }
 }

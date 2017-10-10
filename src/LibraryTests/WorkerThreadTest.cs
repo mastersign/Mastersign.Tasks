@@ -39,7 +39,7 @@ namespace Mastersign.Tasks.Test
             return wt;
         }
 
-        private void WithWorkerThread(Action<WorkerThread, EventMonitor<WorkerThread>> testCase, bool started = true)
+        private void WithWorkerThread(Action<WorkerThread, EventMonitor<WorkerThread>> testCase, bool started = true, bool expectStopped = false)
         {
             var wt = CreateWorkerThread();
             var wtMon = new EventMonitor<WorkerThread>(wt);
@@ -62,8 +62,17 @@ namespace Mastersign.Tasks.Test
             wt.Dispose();
             AssertState(wt, isDisposed: true, isAlive: false, busy: false);
             wtMon.History.AssertSender(wt);
-            wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.IsAlive)))
-                .AssertPropertyValues(false);
+            if (expectStopped)
+            {
+                Assert.IsTrue(
+                    wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.IsAlive)))
+                        .IsEmpty);
+            }
+            else
+            {
+                wtMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkerThread.IsAlive)))
+                    .AssertPropertyValues(false);
+            }
         }
 
         [TestMethod]
@@ -97,7 +106,7 @@ namespace Mastersign.Tasks.Test
 
             //WaitFor(() => task.State == TaskState.Succeeded, 1000);
             wt.WaitForEnd(timeout: 10000);
-            
+
             Assert.IsTrue(q.IsEmpty);
             AssertState(wt, isDisposed: false, isAlive: true, busy: false);
 
@@ -194,6 +203,45 @@ namespace Mastersign.Tasks.Test
 
         // TODO test worker error handling
 
-        // TODO test cancellation
+        [TestMethod]
+        public void CancellationTest()
+            => WithWorkerThread(CancellationTestCase, expectStopped: true);
+
+        private void CancellationTestCase(WorkerThread wt, EventMonitor<WorkerThread> wtMon)
+        {
+            var q = wt.Queue;
+            var tasks = Enumerable.Range(0, 4).Select(i => new TestTask(i.ToString())).ToArray();
+            var taskMons = tasks.Select(t => new EventMonitor<TestTask>(t)).ToArray();
+            var cancelTask = tasks[1];
+            cancelTask.StateChanged += (s, e) =>
+            {
+                if (cancelTask.State == TaskState.InProgress) wt.Cancel();
+            };
+
+            foreach (var task in tasks)
+            {
+                q.Enqueue(task);
+            }
+
+            Assert.IsTrue(wt.WaitForEnd(timeout: 4000));
+
+            Assert.AreEqual(TaskState.Succeeded, tasks[0].State);
+            Assert.AreEqual(TaskState.Canceled, tasks[1].State);
+            Assert.AreEqual(TaskState.Waiting, tasks[2].State);
+            Assert.AreEqual(TaskState.Waiting, tasks[3].State);
+
+            wtMon.History.AssertEventNames(
+                nameof(WorkerThread.BusyChanged),
+                nameof(WorkerThread.CurrentTaskChanged),
+                nameof(WorkerThread.TaskBegin),
+                nameof(WorkerThread.TaskEnd),
+                nameof(WorkerThread.CurrentTaskChanged),
+                nameof(WorkerThread.TaskBegin),
+                nameof(WorkerThread.Cancelled),
+                nameof(WorkerThread.TaskEnd),
+                nameof(WorkerThread.CurrentTaskChanged),
+                nameof(WorkerThread.BusyChanged),
+                nameof(WorkerThread.IsAliveChanged));
+        }
     }
 }

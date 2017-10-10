@@ -41,7 +41,7 @@ namespace Mastersign.Tasks
 
         private void OnTaskBegin(ITask task)
         {
-            TaskBegin?.Invoke(this, new TaskEventArgs(task));
+            TaskBegin?.Invoke(this, new TaskEventArgs(task, TaskState.InProgress));
         }
 
         public event EventHandler<TaskEventArgs> TaskEnd;
@@ -124,8 +124,8 @@ namespace Mastersign.Tasks
                     Busy = true;
                     _workedEvent.Set();
                     CurrentTask = task;
-                    task.UpdateState(TaskState.InProgress);
                     OnTaskBegin(task);
+                    task.UpdateState(TaskState.InProgress);
                     Exception workerError = null;
                     try
                     {

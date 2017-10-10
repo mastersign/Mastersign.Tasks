@@ -13,6 +13,7 @@ namespace Mastersign.Tasks
         private readonly List<TaskWatcher> _taskWatchers = new List<TaskWatcher>();
 
         private readonly Dictionary<string, WorkingLine> _workingLines = new Dictionary<string, WorkingLine>();
+        public Dictionary<WorkingLine, bool> _workingLinesBusy = new Dictionary<WorkingLine, bool>();
         public ICollection<WorkingLine> WorkingLines => _workingLines.Values;
 
         private readonly ManualResetEvent _isRunningEvent = new ManualResetEvent(true);
@@ -87,16 +88,17 @@ namespace Mastersign.Tasks
                 new PropertyChangedEventArgs(nameof(IsRunning)));
         }
 
-        private readonly object _workingLineBusyCountLock = new object();
-
         private void WorkingLineBusyChangedHandler(object sender, PropertyUpdateEventArgs<bool> e)
         {
+            var workingLine = (WorkingLine)sender;
+            var wlBusy = e.NewValue;
             var count = 0;
-            lock (_workingLineBusyCountLock)
+            lock (_workingLinesBusy)
             {
-                foreach (var workingLine in _workingLines.Values)
+                _workingLinesBusy[workingLine] = wlBusy;
+                foreach (var busy in _workingLinesBusy.Values)
                 {
-                    if (workingLine.Busy) count++;
+                    if (busy) count++;
                 }
                 BusyWorkingLinesCount = count;
             }
@@ -189,6 +191,7 @@ namespace Mastersign.Tasks
             workingLine.TaskEnd += WorkingLineTaskEndHandler;
             workingLine.WorkerError += WorkingLineWorkerErrorHandler;
             _workingLines[queueTag] = workingLine;
+            _workingLinesBusy[workingLine] = workingLine.Busy;
         }
 
         #endregion

@@ -26,8 +26,7 @@ namespace Mastersign.Tasks
             var dep = (ITask)sender;
             var depState = e.NewValue;
             if (depState == TaskState.InProgress ||
-                depState == TaskState.CleaningUp ||
-                depState == TaskState.Canceled)
+                depState == TaskState.CleaningUp)
             {
                 return;
             }
@@ -45,7 +44,7 @@ namespace Mastersign.Tasks
                     }
                 }
             }
-            if (depState == TaskState.Obsolete)
+            if (depState == TaskState.Canceled || depState == TaskState.Obsolete)
             {
                 Task.UpdateState(TaskState.Obsolete, dep.Error);
             }

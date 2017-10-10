@@ -225,6 +225,8 @@ namespace Mastersign.Tasks.Test
 
             Assert.IsTrue(wt.WaitForEnd(timeout: 4000));
 
+            AssertState(wt, isDisposed: false, isAlive: false, busy: false);
+
             Assert.AreEqual(TaskState.Succeeded, tasks[0].State);
             Assert.AreEqual(TaskState.Canceled, tasks[1].State);
             Assert.AreEqual(TaskState.Waiting, tasks[2].State);

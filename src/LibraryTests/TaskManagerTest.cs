@@ -186,16 +186,19 @@ namespace Mastersign.Tasks.Test
                 Tuple.Create("A", 1));
 
         [TestMethod]
+        [TestCategory("Concurrent")]
         public void ParallelTaskTest()
             => WithTaskManager(GeneralTasksBeforeStart, GeneralTasksAfterFinish,
                 Tuple.Create("A", 4));
 
         [TestMethod]
+        [TestCategory("Concurrent")]
         public void MultiQueueSequentialTaskTest()
             => WithTaskManager(GeneralTasksBeforeStart, GeneralTasksAfterFinish,
                 Tuple.Create("A", 1), Tuple.Create("B", 1), Tuple.Create("C", 1));
 
         [TestMethod]
+        [TestCategory("Concurrent")]
         public void MultiQueueParallelTaskTest()
             => WithTaskManager(GeneralTasksBeforeStart, GeneralTasksAfterFinish,
                 Tuple.Create("A", 2), Tuple.Create("B", 3), Tuple.Create("C", 4));
@@ -253,16 +256,19 @@ namespace Mastersign.Tasks.Test
                 Tuple.Create("A", 1));
 
         [TestMethod]
+        [TestCategory("Concurrent")]
         public void ParallelCancellationTest()
             => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
                 Tuple.Create("A", 4));
 
         [TestMethod]
+        [TestCategory("Concurrent")]
         public void MultiQueueSequentialCancellationTest()
             => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
                 Tuple.Create("A", 1), Tuple.Create("B", 1), Tuple.Create("C", 1));
 
         [TestMethod]
+        [TestCategory("Concurrent")]
         public void MultiQueueParallelCancellationTest()
             => WithTaskManager(CancellationBeforeStart, CancellationAfterFinish,
                 Tuple.Create("A", 2), Tuple.Create("B", 3), Tuple.Create("C", 4));

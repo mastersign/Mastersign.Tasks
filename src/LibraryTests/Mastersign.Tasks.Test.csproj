@@ -45,6 +45,7 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EventLoopTest.cs" />
     <Compile Include="Monitoring\EventHistory.cs" />
     <Compile Include="Monitoring\EventMonitor.cs" />
     <Compile Include="Monitoring\EventRecord.cs" />

@@ -39,7 +39,7 @@ for ($i = 0; $i -lt $Cycles; $i++)
 {
     foreach ($assembly in $assemblies)
     {
-        $output = & $vstest $assembly "/TestAdapterPath:$binDir" "/TestCaseFilter:TestCategory!=Rendering"
+        $output = & $vstest $assembly "/TestAdapterPath:$binDir" "/TestCaseFilter:TestCategory=Concurrent"
         $status = $LastExitCode
         if ($status -ne 0)
         {

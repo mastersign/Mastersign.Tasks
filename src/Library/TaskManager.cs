@@ -68,8 +68,6 @@ namespace Mastersign.Tasks
                 if (_isRunning) Notify(Started);
                 Notify(OnIsRunningChanged, !_isRunning, _isRunning);
                 if (!_isRunning) Notify(Finished);
-
-                if (!_isRunning) _isRunningEvent.Set();
             }
         }
 
@@ -82,10 +80,24 @@ namespace Mastersign.Tasks
 
         private void OnIsRunningChanged(bool oldValue, bool newValue)
         {
-            IsRunningChanged?.Invoke(this,
-                new PropertyUpdateEventArgs<bool>(nameof(IsRunning), oldValue, newValue));
-            PropertyChanged?.Invoke(this,
-                new PropertyChangedEventArgs(nameof(IsRunning)));
+            try
+            {
+                IsRunningChanged?.Invoke(this,
+                    new PropertyUpdateEventArgs<bool>(nameof(IsRunning), oldValue, newValue));
+                PropertyChanged?.Invoke(this,
+                    new PropertyChangedEventArgs(nameof(IsRunning)));
+            }
+            finally
+            {
+                if (newValue == false)
+                {
+                    try
+                    {
+                        _isRunningEvent.Set();
+                    }
+                    catch (ObjectDisposedException) { }
+                }
+            }
         }
 
         private void WorkingLineBusyChangedHandler(object sender, PropertyUpdateEventArgs<bool> e)

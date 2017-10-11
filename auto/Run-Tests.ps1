@@ -58,6 +58,7 @@ for ($i = 0; $i -lt $Cycles; $i++)
 if ($errCount -gt 0)
 {
     Write-Warning "$errCount Failed, $successCount Passed"
+    [System.Media.SystemSounds]::Exclamation.Play();
     exit 1
 }
 else

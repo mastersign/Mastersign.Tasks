@@ -42,13 +42,23 @@ namespace Mastersign.Tasks
         private void OnTaskBegin(ITask task)
         {
             TaskBegin?.Invoke(this, new TaskEventArgs(task, TaskState.InProgress));
+            task.UpdateState(TaskState.InProgress);
         }
 
         public event EventHandler<TaskEventArgs> TaskEnd;
 
-        private void OnTaskEnd(ITask task)
+        private void OnTaskEnd(ITask task, TaskState endState, Exception workerError)
         {
-            TaskEnd?.Invoke(this, new TaskEventArgs(task));
+            try
+            {
+                OnWorkerError(workerError);
+            }
+            catch (Exception)
+            {
+                // ignore exceptions during event handling
+            }
+            task.UpdateState(endState);
+            TaskEnd?.Invoke(this, new TaskEventArgs(task, endState));
         }
 
         private bool _busy;
@@ -127,7 +137,6 @@ namespace Mastersign.Tasks
                     _workedEvent.Set();
                     CurrentTask = task;
                     OnTaskBegin(task);
-                    task.UpdateState(TaskState.InProgress);
                     Exception workerError = null;
                     try
                     {
@@ -137,28 +146,17 @@ namespace Mastersign.Tasks
                     {
                         workerError = e;
                     }
-                    if (workerError != null)
+                    var endState = task.State;
+                    if (endState == TaskState.InProgress || endState == TaskState.CleaningUp)
                     {
-                        if (task.State == TaskState.InProgress || task.State == TaskState.CleaningUp)
-                        {
-                            task.UpdateState(TaskState.Failed, workerError);
-                        }
-                        try
-                        {
-                            OnWorkerError(workerError);
-                        }
-                        catch (Exception)
-                        {
-                            // ignore exceptions during event handling
-                        }
+                        if (workerError != null)
+                            endState = TaskState.Failed;
+                        else if (_cancelationToken.IsCanceled)
+                            endState = TaskState.Canceled;
+                        else
+                            endState = TaskState.Succeeded;
                     }
-                    else if (task.State == TaskState.InProgress || task.State == TaskState.CleaningUp)
-                    {
-                        task.UpdateState(_cancelationToken.IsCanceled
-                            ? TaskState.Canceled
-                            : TaskState.Succeeded);
-                    }
-                    OnTaskEnd(task);
+                    OnTaskEnd(task, endState, workerError);
                 }
                 CurrentTask = null;
                 Busy = false;

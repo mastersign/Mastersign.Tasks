@@ -5,10 +5,11 @@ using System.Threading;
 
 namespace Mastersign.Tasks
 {
-    internal class EventLoop : IDisposable
+    public class EventLoop : IDisposable
     {
         private readonly ConcurrentDispatcher<DelegateCall> _queue = new ConcurrentDispatcher<DelegateCall>();
         private readonly Thread _loopThread;
+        private readonly ManualResetEvent _busyEvent = new ManualResetEvent(true);
 
         public event EventHandler<UnhandledExceptionEventArgs> UnhandledException;
 
@@ -28,6 +29,7 @@ namespace Mastersign.Tasks
             DelegateCall action = null;
             while (_queue.Dequeue(ref action))
             {
+                _busyEvent.Reset();
                 try
                 {
                     action.Delegate.DynamicInvoke(action.Parameter);
@@ -36,6 +38,7 @@ namespace Mastersign.Tasks
                 {
                     OnUnhandledException(e);
                 }
+                _busyEvent.Set();
             }
         }
 
@@ -53,7 +56,14 @@ namespace Mastersign.Tasks
 
         public bool WaitForEmpty(int timeout = Timeout.Infinite)
         {
-            return _queue.WaitForEmpty(timeout);
+            try
+            {
+                return _queue.WaitForEmpty(timeout) && _busyEvent.WaitOne(timeout);
+            }
+            catch (ObjectDisposedException)
+            {
+                return true;
+            }
         }
 
         public bool IsDisposed { get; private set; }
@@ -64,6 +74,7 @@ namespace Mastersign.Tasks
             IsDisposed = true;
             _queue.Dispose();
             _loopThread.Join();
+            _busyEvent.Close();
         }
 
         private class DelegateCall

@@ -8,4 +8,4 @@ packages/
 TestResults/
 .vs/
 /bin
-/tmp
+/testlogs

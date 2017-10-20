@@ -19,6 +19,8 @@ namespace Mastersign.Tasks
                 dep.StateChanged += DependencyStateChangedHandler;
             }
             IsReady = _incompleteDependencies.Count == 0;
+            task.StateChanged += TaskStateChangedHandler;
+            IsObsolete = task.State != TaskState.Obsolete;
         }
 
         private void DependencyStateChangedHandler(object sender, PropertyUpdateEventArgs<TaskState> e)
@@ -26,7 +28,9 @@ namespace Mastersign.Tasks
             var dep = (ITask)sender;
             var depState = e.NewValue;
             if (depState != TaskState.Succeeded && 
-                depState != TaskState.Failed)
+                depState != TaskState.Failed &&
+                depState != TaskState.Canceled &&
+                depState != TaskState.Obsolete)
             {
                 return;
             }
@@ -39,23 +43,51 @@ namespace Mastersign.Tasks
                     dep.StateChanged -= DependencyStateChangedHandler;
                     if (_incompleteDependencies.Count == 0)
                     {
-                        IsReady = true;
                         notify = true;
                     }
                 }
             }
-            if (depState == TaskState.Failed)
+            if (depState == TaskState.Succeeded)
             {
-                Task.UpdateState(TaskState.Obsolete, new DependencyFailedException(dep));
+                if (notify)
+                {
+                    TaskDebug.Verbose($"TW: Observed {dep} succeed -> {Task} got ready");
+                    IsReady = true;
+                    GotReady?.Invoke(this, EventArgs.Empty);
+                }
             }
-            else if (depState == TaskState.Succeeded && notify)
+            else
             {
-                IsReadyChanged?.Invoke(this, EventArgs.Empty);
+                TaskDebug.Verbose($"TW: Observed {dep} get {depState} -> {Task} got obsolete");
+                lock (_incompleteDependencies)
+                {
+                    foreach (var d in _incompleteDependencies)
+                    {
+                        d.StateChanged -= DependencyStateChangedHandler;
+                    }
+                    _incompleteDependencies.Clear();
+                }
+                Task.UpdateState(TaskState.Obsolete, 
+                    depState == TaskState.Failed ? new DependencyFailedException(dep) : null);
+            } 
+        }
+
+        private void TaskStateChangedHandler(object sender, PropertyUpdateEventArgs<TaskState> e)
+        {
+            if (e.NewValue == TaskState.Obsolete)
+            {
+                IsObsolete = true;
+                TaskDebug.Verbose($"TW: Observed {Task} get obsolete");
+                GotObsolete?.Invoke(this, EventArgs.Empty);
             }
         }
 
         public bool IsReady { get; private set; }
 
-        public event EventHandler IsReadyChanged;
+        public event EventHandler GotReady;
+
+        public bool IsObsolete { get; private set; }
+
+        public event EventHandler GotObsolete;
     }
 }

@@ -135,7 +135,10 @@ namespace Mastersign.Tasks
                 foreach (var taskWatcher in _taskWatchers)
                 {
                     var taskState = taskWatcher.Task.State;
-                    if (taskState != TaskState.Obsolete && taskState != TaskState.Canceled)
+                    if (taskState != TaskState.Succeeded && // technically not necessary
+                        taskState != TaskState.Failed && // technically not necessary
+                        taskState != TaskState.Obsolete &&
+                        taskState != TaskState.Canceled)
                     {
                         finished = false;
                         break;
@@ -175,6 +178,8 @@ namespace Mastersign.Tasks
             PropertyChanged?.Invoke(this,
                 new PropertyChangedEventArgs(nameof(BusyWorkingLinesCount)));
         }
+
+        private bool _isCancelled;
 
         #endregion
 
@@ -221,6 +226,7 @@ namespace Mastersign.Tasks
         {
             if (IsDisposed) throw new ObjectDisposedException(nameof(TaskManager));
             if (IsRunning) throw new InvalidOperationException("The manager was already started.");
+            _isCancelled = false;
             IsRunning = true;
             if (_tasks.Count == 0)
             {
@@ -247,18 +253,7 @@ namespace Mastersign.Tasks
 
         public void Cancel()
         {
-            // make tasks not yet queued obsolete
-            lock (_taskWatchers)
-            {
-                foreach (var taskWatcher in _taskWatchers)
-                {
-                    if (!taskWatcher.IsReady)
-                    {
-                        taskWatcher.Task.UpdateState(TaskState.Obsolete);
-                    }
-                }
-            }
-            // cancel queues
+            _isCancelled = true;
             foreach (var workingLine in _workingLines.Values)
             {
                 workingLine.Cancel();
@@ -326,8 +321,10 @@ namespace Mastersign.Tasks
                         $"A task has the queue tag '{t.QueueTag}', but for this tag exists no working line.");
                 }
                 var taskWatcher = new TaskWatcher(t);
-                taskWatcher.IsReadyChanged += TaskIsReadyChangedHandler;
+                taskWatcher.GotReady += TaskGotReadyHandler;
+                taskWatcher.GotObsolete += TaskGotObsoleteHandler;
                 _taskWatchers.Add(taskWatcher);
+                TaskDebug.Verbose($"Watching task {t}");
             }
         }
 
@@ -337,25 +334,50 @@ namespace Mastersign.Tasks
             {
                 if (taskWatcher.IsReady)
                 {
-                    taskWatcher.IsReadyChanged -= TaskIsReadyChangedHandler;
-                    TaskIsReadyChangedHandler(taskWatcher, EventArgs.Empty);
+                    TaskGotReadyHandler(taskWatcher, EventArgs.Empty);
                 }
             }
         }
 
-        private void TaskIsReadyChangedHandler(object sender, EventArgs e)
+        private void RemoveTaskWatcher(TaskWatcher taskWatcher)
         {
-            var taskWatcher = (TaskWatcher)sender;
-
-            Debug.Assert(taskWatcher.IsReady,
-                "A task watcher was reported as ready, but it is not.");
-
-            taskWatcher.IsReadyChanged -= TaskIsReadyChangedHandler;
+            taskWatcher.GotReady -= TaskGotReadyHandler;
+            taskWatcher.GotObsolete -= TaskGotObsoleteHandler;
             lock (_taskWatchers)
             {
                 _taskWatchers.Remove(taskWatcher);
             }
-            DispatchTask(taskWatcher.Task);
+        }
+
+        private void TaskGotReadyHandler(object sender, EventArgs e)
+        {
+            var taskWatcher = (TaskWatcher)sender;
+
+            System.Diagnostics.Debug.Assert(taskWatcher.IsReady,
+                "A task watcher was reported as ready, but it is not.");
+
+            TaskDebug.Verbose($"TM: {taskWatcher.Task} got ready");
+            RemoveTaskWatcher(taskWatcher);
+
+            if (!_isCancelled)
+            {
+                DispatchTask(taskWatcher.Task);
+            }
+            else
+            {
+                taskWatcher.Task.UpdateState(TaskState.Obsolete);
+            }
+        }
+
+        private void TaskGotObsoleteHandler(object sender, EventArgs e)
+        {
+            var taskWatcher = (TaskWatcher)sender;
+
+            System.Diagnostics.Debug.Assert(taskWatcher.IsObsolete,
+                "A task watcher was reported as obsolete, but it is not.");
+
+            TaskDebug.Verbose($"TM: {taskWatcher.Task} got obsolete");
+            RemoveTaskWatcher(taskWatcher);
         }
 
         private void DispatchTask(ITask task)

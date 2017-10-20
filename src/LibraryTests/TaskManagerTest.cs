@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Mastersign.Tasks.Test.Monitors;
 using static Mastersign.Tasks.Test.Monitors.EventRecordPredicates;
+using System.Diagnostics;
 
 namespace Mastersign.Tasks.Test
 {
@@ -283,7 +284,11 @@ namespace Mastersign.Tasks.Test
             // cancel the task manager as soon as this task gets worked on
             cancelTask.StateChanged += (sender, ea) =>
             {
-                if (ea.NewValue == TaskState.InProgress) tm.Cancel();
+                if (ea.NewValue == TaskState.InProgress)
+                {
+                    Debug.WriteLine("CANCEL");
+                    tm.Cancel();
+                }
             };
 
             return tgMon;

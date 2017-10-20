@@ -16,12 +16,15 @@ namespace Mastersign.Tasks
         public EventLoop()
         {
             _loopThread = new Thread(Loop);
+            _loopThread.Name = "Event Loop";
             _loopThread.Start();
         }
 
         public void Push(Delegate @delegate, params object[] parameter)
         {
-            _queue.Enqueue(new DelegateCall(@delegate, parameter));
+            var call = new DelegateCall(@delegate, parameter);
+            TaskDebug.Verbose($"EventLoop Queue {call}");
+            _queue.Enqueue(call);
         }
 
         private void Loop()
@@ -29,6 +32,7 @@ namespace Mastersign.Tasks
             DelegateCall action = null;
             while (_queue.Dequeue(ref action))
             {
+                TaskDebug.Verbose($"EventLoop Dequeue {action}");
                 _busyEvent.Reset();
                 try
                 {
@@ -88,6 +92,9 @@ namespace Mastersign.Tasks
                 Delegate = @delegate;
                 Parameter = parameter;
             }
+
+            public override string ToString()
+                => "Delegate " + GetHashCode();
         }
     }
 }

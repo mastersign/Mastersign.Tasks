@@ -20,7 +20,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\..\bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;VERBOSE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -48,6 +48,7 @@
     <Compile Include="IWorker.cs" />
     <Compile Include="IWorkerFactory.cs" />
     <Compile Include="PropertyUpdateEventArgs.cs" />
+    <Compile Include="TaskDebug.cs" />
     <Compile Include="TaskEventArgs.cs" />
     <Compile Include="TaskHelper.cs" />
     <Compile Include="TaskWatcher.cs" />

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Text;
 using System.Threading;
 
@@ -65,9 +64,17 @@ namespace Mastersign.Tasks
                 _isRunning = value;
                 if (_isRunning) _isRunningEvent.Reset();
 
-                if (_isRunning) Notify(Started);
+                if (_isRunning)
+                {
+                    TaskDebug.Verbose("TM: Started");
+                    Notify(Started);
+                }
                 Notify(OnIsRunningChanged, !_isRunning, _isRunning);
-                if (!_isRunning) Notify(Finished);
+                if (!_isRunning)
+                {
+                    TaskDebug.Verbose("TM: Finished");
+                    Notify(Finished);
+                }
             }
         }
 
@@ -353,6 +360,7 @@ namespace Mastersign.Tasks
 
         private void DispatchTask(ITask task)
         {
+            TaskDebug.Verbose($"TM: Dispatching task {task}");
             var workingLine = _workingLines[task.QueueTag];
             workingLine.Enqueue(task);
         }

@@ -14,7 +14,7 @@ namespace Mastersign.Tasks.Test
         [TestMethod]
         public void ConcurrentOrderTest()
         {
-            var eventLoop = new EventLoop();
+            var eventLoop = new EventLoop("Test");
 
             var sourceItems = Enumerable.Range(0, 10000).ToArray();
             var threadCount = 20;

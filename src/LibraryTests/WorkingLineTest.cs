@@ -17,8 +17,9 @@ namespace Mastersign.Tasks.Test
         private static WorkingLine CreateWorkingLine(int worker)
         {
             const string TAG = "Test";
+            var el = new EventLoop("Test");
             var wf = new TestWorkerFactory();
-            var wl = new WorkingLine(TAG, wf, worker: worker);
+            var wl = new WorkingLine(el, TAG, wf, worker: worker);
             Assert.AreEqual(wf, wl.WorkerFactory);
             Assert.AreEqual(worker, wl.Worker);
             Assert.AreEqual(wl.Worker, wl.WorkerThreads.Count);
@@ -86,9 +87,9 @@ namespace Mastersign.Tasks.Test
             wlMon.History
                 .AssertSender(wl)
                 .AssertEventNames(
+                    nameof(WorkingLine.TaskBegin),
                     nameof(WorkingLine.BusyChanged),
                     nameof(WorkingLine.BusyWorkerCountChanged),
-                    nameof(WorkingLine.TaskBegin),
                     nameof(WorkingLine.TaskEnd),
                     nameof(WorkingLine.BusyWorkerCountChanged),
                     nameof(WorkingLine.BusyChanged));
@@ -177,9 +178,9 @@ namespace Mastersign.Tasks.Test
             wlMon.History
                 .AssertSender(wl)
                 .AssertEventNames(
+                nameof(WorkingLine.TaskBegin),
                 nameof(WorkingLine.BusyChanged),
                 nameof(WorkingLine.BusyWorkerCountChanged),
-                nameof(WorkingLine.TaskBegin),
                 nameof(WorkingLine.TaskEnd),
                 nameof(WorkingLine.TaskBegin),
                 nameof(WorkingLine.Cancelled),
@@ -207,6 +208,7 @@ namespace Mastersign.Tasks.Test
             wl.Enqueue(tasks);
 
             Assert.IsTrue(wl.WaitForEnd(timeout: 4000));
+            Thread.Sleep(100);
 
             AssertState(wl, isDisposed: false, busy: false);
             Assert.AreEqual(0, wl.CurrentTasks.Length);

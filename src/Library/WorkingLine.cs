@@ -15,6 +15,7 @@ namespace Mastersign.Tasks
         public int Worker { get; private set; }
         public ThreadPriority ThreadPriority { get; private set; }
 
+        private readonly EventLoop _eventLoop;
         private readonly TaskQueue _queue = new TaskQueue();
         private readonly List<WorkerThread> _threads = new List<WorkerThread>();
         private readonly Dictionary<WorkerThread, bool> _threadBusy = new Dictionary<WorkerThread, bool>();
@@ -27,12 +28,13 @@ namespace Mastersign.Tasks
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public WorkingLine(string queueTag, IWorkerFactory factory, int worker = 1, ThreadPriority threadPriority = ThreadPriority.Normal)
+        public WorkingLine(EventLoop eventLoop, string queueTag, IWorkerFactory factory, int worker = 1, ThreadPriority threadPriority = ThreadPriority.Normal)
         {
             QueueTag = queueTag ?? throw new ArgumentNullException(nameof(queueTag));
             WorkerFactory = factory ?? throw new ArgumentNullException(nameof(factory));
             Worker = Math.Max(1, Math.Min(MAX_WORKER, worker));
             ThreadPriority = threadPriority;
+            _eventLoop = eventLoop;
 
             for (int i = 0; i < worker; i++)
             {
@@ -74,55 +76,46 @@ namespace Mastersign.Tasks
 
         private void OnBusyWorkerCountChanged(int oldValue, int newValue)
         {
-            BusyWorkerCountChanged?.Invoke(this, new PropertyUpdateEventArgs<int>(nameof(BusyWorkerCount), oldValue, newValue));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusyWorkerCount)));
+            _eventLoop.Push(BusyWorkerCountChanged, this, new PropertyUpdateEventArgs<int>(nameof(BusyWorkerCount), oldValue, newValue));
+            _eventLoop.Push(PropertyChanged, this, new PropertyChangedEventArgs(nameof(BusyWorkerCount)));
         }
 
         private void WorkerThreadBusyChangedHandler(object sender, PropertyUpdateEventArgs<bool> e)
+            => _eventLoop.RunActionAsync(() => ProcessWorkerThreadBusyChanged((WorkerThread)sender, e.OldValue, e.NewValue));
+
+        private void ProcessWorkerThreadBusyChanged(WorkerThread thread, bool oldValue, bool newValue)
         {
-            var threadIsBusy = e.NewValue;
-            var thread = (WorkerThread)sender;
+            var threadIsBusy = newValue;
             var count = 0;
-            lock (_threadBusy)
+            _threadBusy[thread] = threadIsBusy;
+            foreach (var busy in _threadBusy.Values)
             {
-                _threadBusy[thread] = threadIsBusy;
-                foreach (var busy in _threadBusy.Values)
-                {
-                    if (busy) count++;
-                }
-                BusyWorkerCount = count;
-                if (threadIsBusy)
-                {
-                    _workedEvent.Set();
-                }
+                if (busy) count++;
+            }
+            BusyWorkerCount = count;
+            if (threadIsBusy)
+            {
+                _workedEvent.Set();
             }
         }
 
         private void WorkerThreadTaskRejectedHandler(object sender, TaskRejectedEventArgs e)
-        {
-            TaskRejected?.Invoke(this, e);
-        }
+            => _eventLoop.Push(TaskRejected, this, e);
 
         public event EventHandler<TaskRejectedEventArgs> TaskRejected;
 
         private void WorkerThreadErrorHandler(object sender, WorkerErrorEventArgs e)
-        {
-            WorkerError?.Invoke(this, e);
-        }
+            => _eventLoop.Push(WorkerError, this, e);
 
         public event EventHandler<WorkerErrorEventArgs> WorkerError;
 
         private void WorkerThreadTaskBeginHandler(object sender, TaskEventArgs e)
-        {
-            TaskBegin?.Invoke(this, e);
-        }
+            => _eventLoop.Push(TaskBegin, this, e);
 
         public event EventHandler<TaskEventArgs> TaskBegin;
 
         private void WorkerThreadTaskEndHandler(object sender, TaskEventArgs e)
-        {
-            TaskEnd?.Invoke(this, e);
-        }
+            => _eventLoop.Push(TaskEnd, this, e);
 
         public event EventHandler<TaskEventArgs> TaskEnd;
 
@@ -148,8 +141,8 @@ namespace Mastersign.Tasks
 
         private void OnBusyChanged(bool oldValue, bool newValue)
         {
-            BusyChanged?.Invoke(this, new PropertyUpdateEventArgs<bool>(nameof(Busy), oldValue, newValue));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Busy)));
+            _eventLoop.Push(BusyChanged, this, new PropertyUpdateEventArgs<bool>(nameof(Busy), oldValue, newValue));
+            _eventLoop.Push(PropertyChanged, this, new PropertyChangedEventArgs(nameof(Busy)));
         }
 
         public ITask[] CurrentTasks
@@ -191,9 +184,7 @@ namespace Mastersign.Tasks
         public event EventHandler Cancelled;
 
         private void OnCancelled()
-        {
-            Cancelled?.Invoke(this, EventArgs.Empty);
-        }
+            => _eventLoop.Push(Cancelled, this, EventArgs.Empty);
 
         public void Cancel()
         {
@@ -231,16 +222,13 @@ namespace Mastersign.Tasks
             return result;
         }
 
-        public bool IsDisposed { get; private set; }
-        private readonly object _disposeLock = new object();
+        private int _disposed = 0;
+        public bool IsDisposed => _disposed != 0;
 
         public void Dispose()
         {
-            lock (_disposeLock)
-            {
-                if (IsDisposed) return;
-                IsDisposed = true;
-            }
+            var disposed = Interlocked.Exchange(ref _disposed, 1);
+            if (disposed != 0) return;
             _queue.Dispose();
             foreach (var thread in _threads)
             {

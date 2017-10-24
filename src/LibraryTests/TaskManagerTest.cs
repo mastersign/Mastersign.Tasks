@@ -137,8 +137,8 @@ namespace Mastersign.Tasks.Test
                 .AssertEventNames(
                     nameof(TaskManager.Started),
                     nameof(TaskManager.IsRunningChanged),
-                    nameof(TaskManager.BusyWorkingLinesCountChanged),
                     nameof(TaskManager.TaskBegin),
+                    nameof(TaskManager.BusyWorkingLinesCountChanged),
                     nameof(TaskManager.TaskEnd),
                     nameof(TaskManager.BusyWorkingLinesCountChanged),
                     nameof(TaskManager.IsRunningChanged),

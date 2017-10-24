@@ -11,40 +11,41 @@ namespace Mastersign.Tasks
         private readonly Thread _loopThread;
         private readonly ManualResetEvent _busyEvent = new ManualResetEvent(true);
 
+        public string Name { get; set; }
+
         public event EventHandler<UnhandledExceptionEventArgs> UnhandledException;
 
-        public EventLoop()
+        public EventLoop(string name = null)
         {
+            Name = name;
             _loopThread = new Thread(Loop);
-            _loopThread.Name = "Event Loop";
+            _loopThread.Name = "Event Loop" + name != null ? " " + name : string.Empty;
             _loopThread.Start();
         }
 
         public void Push(Delegate @delegate, params object[] parameter)
         {
+            if (@delegate == null) return;
             var call = new DelegateCall(@delegate, parameter);
-            TaskDebug.Verbose($"EventLoop Queue {call}");
+            //TaskDebug.Verbose($"EventLoop Queue {call}");
             _queue.Enqueue(call);
         }
 
-        public void Push(ActionHandle action)
+        public void RunActionAsync(ActionHandle action)
             => Push(action);
 
-        public void Push(EventHandler handler)
-            => Push(handler, this, EventArgs.Empty);
+        public void FireEvent(object sender, EventHandler handler)
+            => Push(handler, sender, EventArgs.Empty);
 
-        public void Push<T>(EventHandler<T> handler, T e) where T : EventArgs
-            => Push(handler, this, e);
-
-        public void Push<T>(PropertyChangeHandler<T> handler, T oldValue, T newValue)
-            => Push(handler, oldValue, newValue);
+        public void FireEvent<T>(object sender, EventHandler<T> handler, T e) where T : EventArgs
+            => Push(handler, sender, e);
 
         private void Loop()
         {
             DelegateCall action = null;
             while (_queue.Dequeue(ref action))
             {
-                TaskDebug.Verbose($"EventLoop Dequeue {action}");
+                //TaskDebug.Verbose($"EventLoop Dequeue {action}");
                 _busyEvent.Reset();
                 try
                 {

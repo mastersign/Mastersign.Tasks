@@ -27,6 +27,18 @@ namespace Mastersign.Tasks
             _queue.Enqueue(call);
         }
 
+        public void Push(ActionHandle action)
+            => Push(action);
+
+        public void Push(EventHandler handler)
+            => Push(handler, this, EventArgs.Empty);
+
+        public void Push<T>(EventHandler<T> handler, T e) where T : EventArgs
+            => Push(handler, this, e);
+
+        public void Push<T>(PropertyChangeHandler<T> handler, T oldValue, T newValue)
+            => Push(handler, oldValue, newValue);
+
         private void Loop()
         {
             DelegateCall action = null;
@@ -97,4 +109,6 @@ namespace Mastersign.Tasks
                 => "Delegate " + GetHashCode();
         }
     }
+
+    public delegate void PropertyChangeHandler<T>(T oldValue, T newValue);
 }

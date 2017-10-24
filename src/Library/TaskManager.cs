@@ -26,29 +26,9 @@ namespace Mastersign.Tasks
 
         #region Event Dispatch
 
-        private readonly EventLoop _eventLoop = new EventLoop();
+        private readonly EventLoop _outerEventLoop = new EventLoop();
 
-        private void Notify(ActionHandle action)
-        {
-            _eventLoop.Push(action);
-        }
 
-        private void Notify(EventHandler handler)
-        {
-            _eventLoop.Push(handler, this, EventArgs.Empty);
-        }
-
-        private void Notify<T>(EventHandler<T> handler, T e) where T : EventArgs
-        {
-            _eventLoop.Push(handler, this, e);
-        }
-
-        private delegate void PropertyChangedNotifier<T>(T oldValue, T newValue);
-
-        private void Notify<T>(PropertyChangedNotifier<T> handler, T oldValue, T newValue)
-        {
-            _eventLoop.Push(handler, oldValue, newValue);
-        }
 
         #endregion
 
@@ -67,13 +47,13 @@ namespace Mastersign.Tasks
                 if (_isRunning)
                 {
                     TaskDebug.Verbose("TM: Started");
-                    Notify(Started);
+                    _outerEventLoop.Push(Started);
                 }
-                Notify(OnIsRunningChanged, !_isRunning, _isRunning);
+                _outerEventLoop.Push(OnIsRunningChanged, !_isRunning, _isRunning);
                 if (!_isRunning)
                 {
                     TaskDebug.Verbose("TM: Finished");
-                    Notify(Finished);
+                    _outerEventLoop.Push(Finished);
                 }
             }
         }
@@ -160,7 +140,7 @@ namespace Mastersign.Tasks
                 if (_busyWorkingLinesCount == value) return;
                 var oldValue = _busyWorkingLinesCount;
                 _busyWorkingLinesCount = value;
-                Notify(OnBusyWorkingLinesCountChanged, oldValue, value);
+                _outerEventLoop.Push(OnBusyWorkingLinesCountChanged, oldValue, value);
             }
         }
 
@@ -258,7 +238,7 @@ namespace Mastersign.Tasks
             {
                 workingLine.Cancel();
             }
-            Notify(Canceled);
+            _outerEventLoop.Push(Canceled);
         }
 
         public event EventHandler Canceled;
@@ -299,7 +279,7 @@ namespace Mastersign.Tasks
             {
                 workingLine.Dispose();
             }
-            _eventLoop.Dispose();
+            _outerEventLoop.Dispose();
             _isRunningEvent.Close();
             Disposed?.Invoke(this, EventArgs.Empty);
         }
@@ -389,7 +369,7 @@ namespace Mastersign.Tasks
 
         private void WorkingLineTaskRejectedHandler(object sender, TaskRejectedEventArgs e)
         {
-            Notify(TaskRejected, e);
+            _outerEventLoop.Push(TaskRejected, e);
         }
 
         /// <remarks>
@@ -401,7 +381,7 @@ namespace Mastersign.Tasks
 
         private void WorkingLineTaskBeginHandler(object sender, TaskEventArgs e)
         {
-            Notify(TaskBegin, e);
+            _outerEventLoop.Push(TaskBegin, e);
         }
 
         /// <remarks>
@@ -413,7 +393,7 @@ namespace Mastersign.Tasks
 
         private void WorkingLineTaskEndHandler(object sender, TaskEventArgs e)
         {
-            Notify(TaskEnd, e);
+            _outerEventLoop.Push(TaskEnd, e);
         }
 
         /// <remarks>
@@ -425,7 +405,7 @@ namespace Mastersign.Tasks
 
         private void WorkingLineWorkerErrorHandler(object sender, WorkerErrorEventArgs e)
         {
-            Notify(WorkerError, e);
+            _outerEventLoop.Push(WorkerError, e);
         }
 
         public event EventHandler<WorkerErrorEventArgs> WorkerError;

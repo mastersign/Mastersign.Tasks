@@ -331,17 +331,28 @@ namespace Mastersign.Tasks.Test
         private void CancellationAfterFinish(TaskManager tm, EventMonitor<TaskManager> tmMon,
             TaskGraphMonitor tgMon)
         {
-            Assert.IsFalse(tgMon.Tasks.Where(t => t.State == TaskState.Waiting).Any(),
+            var labelsByState = new Dictionary<TaskState, List<string>>();
+            foreach (TaskState state in Enum.GetValues(typeof(TaskState)))
+            {
+                var labels = tgMon.Tasks.Where(t => t.State == state).Select(t => t.Label).ToList();
+                if (labels.Count > 0)
+                {
+                    TaskDebug.Verbose($"Tasks with state {state}: {string.Join(", ", labels)}");
+                }
+                labelsByState[state] = labels;
+            }
+
+            Assert.AreEqual(0, labelsByState[TaskState.Waiting].Count,
                 "Some tasks are still waiting.");
-            Assert.IsFalse(tgMon.Tasks.Where(t => t.State == TaskState.InProgress).Any(),
+            Assert.AreEqual(0, labelsByState[TaskState.InProgress].Count,
                 "Some tasks are still in progress.");
-            Assert.IsFalse(tgMon.Tasks.Where(t => t.State == TaskState.CleaningUp).Any(),
+            Assert.AreEqual(0, labelsByState[TaskState.CleaningUp].Count,
                 "Some tasks are still in clean-up state.");
-            Assert.IsTrue(tgMon.Tasks.Where(t => t.State == TaskState.Succeeded).Any(),
+            Assert.AreNotEqual(0, labelsByState[TaskState.Succeeded].Count,
                 "No tasks succeeded.");
-            Assert.IsTrue(tgMon.Tasks.Where(t => t.State == TaskState.Canceled).Any(),
+            Assert.AreNotEqual(0, labelsByState[TaskState.Canceled].Count,
                 "No task was cancelled.");
-            Assert.IsTrue(tgMon.Tasks.Where(t => t.State == TaskState.Obsolete).Any(),
+            Assert.AreNotEqual(0, labelsByState[TaskState.Obsolete].Count,
                 "No task got obsolete.");
         }
 

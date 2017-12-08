@@ -242,8 +242,25 @@ namespace Mastersign.Tasks.Test
                 .AssertPropertyValuesInSet(possibleWorkerLineBusyCounts)
                 .AssertPropertyValuesOccured(possibleWorkerLineBusyCounts);
 
-            Assert.AreEqual(tgMon.Tasks.Count, tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskBegin))).Count);
-            Assert.AreEqual(tgMon.Tasks.Count, tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskEnd))).Count);
+            var labels = tgMon.Tasks.Select(t => t.Label).ToList();
+            
+            var beginLabels = tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskBegin)))
+                .Select(e => ((TestTask)((TaskEventArgs)e.EventArgs).Task).Label).ToList();
+            var unstartedLabels = labels.Except(beginLabels).ToList();
+            if (unstartedLabels.Count > 0)
+            {
+                Debug.WriteLine("Task without begin event: " + string.Join(", ", unstartedLabels));
+                Assert.Fail("The following tasks did not fire a begin event: " + string.Join(", ", unstartedLabels));
+            }
+
+            var endLabels = tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskEnd)))
+                .Select(e => ((TestTask)((TaskEventArgs)e.EventArgs).Task).Label).ToList();
+            var unfinishedLabels = labels.Except(endLabels).ToList();
+            if (unfinishedLabels.Count > 0)
+            {
+                Debug.WriteLine("Task without end event: " + string.Join(", ", unfinishedLabels));
+                Assert.Fail("The following tasks did not fire an end event: " + string.Join(", ", unfinishedLabels));
+            }
 
             foreach (var taskMon in tgMon.TaskMonitors)
             {

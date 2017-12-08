@@ -5,12 +5,15 @@ using System.Text;
 
 namespace Mastersign.Tasks
 {
-    internal static class TaskDebug
+    public static class TaskDebug
     {
+        public static Stopwatch Stopwatch { get; set; }
+
         [Conditional("VERBOSE")]
         public static void Verbose(string message)
         {
-            Debug.WriteLine($"[{System.Threading.Thread.CurrentThread.Name}] {message}");
+            var t = Stopwatch?.Elapsed ?? TimeSpan.Zero;
+            Debug.WriteLine($"{t.TotalMilliseconds:000000.0} [{System.Threading.Thread.CurrentThread.Name}] {message}");
         }
     }
 }

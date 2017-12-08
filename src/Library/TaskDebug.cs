@@ -13,7 +13,7 @@ namespace Mastersign.Tasks
         public static void Verbose(string message)
         {
             var t = Stopwatch?.Elapsed ?? TimeSpan.Zero;
-            Debug.WriteLine($"{t.TotalMilliseconds:000000.0} [{System.Threading.Thread.CurrentThread.Name}] {message}");
+            Debug.WriteLine($"{t.TotalMilliseconds:000000.000} [{System.Threading.Thread.CurrentThread.Name}] {message}");
         }
     }
 }

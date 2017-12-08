@@ -26,9 +26,9 @@ namespace Mastersign.Tasks.Test
 
         protected override void OnStateChanged(TaskState oldValue, TaskState newValue)
         {
-            Debug.WriteLine($"[{System.Threading.Thread.CurrentThread.Name}] T: Task[{Label}] State Changing: {oldValue} -> {newValue}");
+            TaskDebug.Verbose($"TA: Task[{Label}] State Changing: {oldValue} -> {newValue}");
             StateChanging?.Invoke(this, new PropertyUpdateEventArgs<TaskState>(nameof(ITask.State), oldValue, newValue));
-            Debug.WriteLine($"[{System.Threading.Thread.CurrentThread.Name}] T: Task[{Label}] State Changed: {oldValue} -> {newValue}");
+            TaskDebug.Verbose($"TA: Task[{Label}] State Changed: {oldValue} -> {newValue}");
             base.OnStateChanged(oldValue, newValue);
         }
 

@@ -85,14 +85,16 @@ namespace Mastersign.Tasks.Test
 
             tm.Start();
 
-            Assert.IsTrue(tm.WaitForEnd(10000));
-            Thread.Sleep(100);
-            Assert.IsTrue(finishedEvent.WaitOne(1000));
+            var waitForEndResult = tm.WaitForEnd(4000);
+            var waitForFinishResult = finishedEvent.WaitOne(1000);
             finishedEvent.Close();
-            
+
             afterFinish.Invoke(tm, tmMon, cache);
 
             tmMon.ClearHistory();
+
+            Assert.IsTrue(waitForEndResult, "WaitForEnd did not finish in time.");
+            Assert.IsTrue(waitForFinishResult, "The event TaskManager.Finished did not fire in time.");
 
             Assert.IsFalse(tm.IsDisposed);
             tm.Dispose();

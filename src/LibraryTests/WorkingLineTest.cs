@@ -8,12 +8,28 @@ using System.Threading.Tasks;
 using static Mastersign.Tasks.Test.StateAssertions;
 using static Mastersign.Tasks.Test.Monitors.EventRecordPredicates;
 using System.Threading;
+using System.Diagnostics;
 
 namespace Mastersign.Tasks.Test
 {
     [TestClass]
     public class WorkingLineTest
     {
+        private readonly Stopwatch _watch = new Stopwatch();
+
+        [TestInitialize]
+        public void Initialize()
+        {
+            _watch.Start();
+            TaskDebug.Stopwatch = _watch;
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            _watch.Stop();
+        }
+
         private static WorkingLine CreateWorkingLine(int worker)
         {
             const string TAG = "Test";

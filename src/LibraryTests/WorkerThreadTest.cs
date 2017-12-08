@@ -8,12 +8,28 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Mastersign.Tasks.Test.Monitors;
 using static Mastersign.Tasks.Test.Monitors.EventRecordPredicates;
 using static Mastersign.Tasks.Test.StateAssertions;
+using System.Diagnostics;
 
 namespace Mastersign.Tasks.Test
 {
     [TestClass]
     public class WorkerThreadTest
     {
+        private readonly Stopwatch _watch = new Stopwatch();
+
+        [TestInitialize]
+        public void Initialize()
+        {
+            _watch.Start();
+            TaskDebug.Stopwatch = _watch;
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            _watch.Stop();
+        }
+
         private void AssertTaskProgressRange(EventMonitor<TestTask> taskMonitor, float first = 0f, float last = 1f)
         {
             var progressHistory = taskMonitor.FilterHistory(ByPropertyChanges<float>(nameof(TestTask.Progress)));

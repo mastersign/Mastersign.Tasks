@@ -20,6 +20,21 @@ namespace Mastersign.Tasks.Test
         private const int DEF_TASK_MIN_DEPS = 1;
         private const int DEF_TASK_MAX_DEPS = 2;
 
+        private readonly Stopwatch _watch = new Stopwatch();
+
+        [TestInitialize]
+        public void Initialize()
+        {
+            _watch.Start();
+            TaskDebug.Stopwatch = _watch;
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            _watch.Stop();
+        }
+
         private void AssertState(TaskManager tm, bool isDisposed, bool isRunning)
         {
             Assert.AreEqual(isDisposed, tm.IsDisposed);

@@ -23,6 +23,9 @@ namespace Mastersign.Tasks
             IsReady = _incompleteDependencies.Count == 0;
             task.StateChanged += TaskStateChangedHandler;
             IsObsolete = task.State != TaskState.Obsolete;
+            IsFinished = task.State == TaskState.Succeeded ||
+                         task.State == TaskState.Failed ||
+                         Task.State == TaskState.Canceled;
         }
 
         private void DependencyStateChangedHandler(object sender, PropertyUpdateEventArgs<TaskState> e)
@@ -81,6 +84,14 @@ namespace Mastersign.Tasks
                 TaskDebug.Verbose($"TW: Observed {Task} get obsolete");
                 _eventLoop.FireEvent(this, GotObsolete);
             }
+            else if (newValue == TaskState.Succeeded ||
+                newValue == TaskState.Failed ||
+                newValue == TaskState.Canceled)
+            {
+                IsFinished = true;
+                TaskDebug.Verbose($"TW: Observed {Task} finished as {newValue}");
+                _eventLoop.FireEvent(this, Finished);
+            }
         }
 
         public bool IsReady { get; private set; }
@@ -92,5 +103,10 @@ namespace Mastersign.Tasks
 
         /// <remarks>Is firing on the event loop.</remarks>
         public event EventHandler GotObsolete;
+
+        public bool IsFinished { get; private set; }
+
+        /// <remarks>Is firing on the event loop.</remarks>
+        public event EventHandler Finished;
     }
 }

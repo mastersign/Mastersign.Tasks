@@ -326,7 +326,6 @@ namespace Mastersign.Tasks
                 "A task watcher was reported as ready, but it is not.");
 
             TaskDebug.Verbose($"TM: {taskWatcher.Task} got ready");
-            RemoveTaskWatcher(taskWatcher);
 
             if (!_isCancelled)
             {
@@ -346,6 +345,17 @@ namespace Mastersign.Tasks
                 "A task watcher was reported as obsolete, but it is not.");
 
             TaskDebug.Verbose($"TM: {taskWatcher.Task} got obsolete");
+            RemoveTaskWatcher(taskWatcher);
+        }
+
+        private void TaskFinishedHandler(object sender, EventArgs e)
+        {
+            var taskWatcher = (TaskWatcher)sender;
+
+            System.Diagnostics.Debug.Assert(taskWatcher.IsFinished,
+                "A task watcher was reported as finished, but it is not.");
+
+            TaskDebug.Verbose($"TM: {taskWatcher.Task} finished");
             RemoveTaskWatcher(taskWatcher);
         }
 

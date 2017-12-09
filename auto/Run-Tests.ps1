@@ -1,11 +1,23 @@
 param (
     $Cycles = 100,
-    $Configuration = "Debug"
+    $Configuration = "Debug",
+    $ErrorSound = "error.wav",
+    [switch]$NoHalt
 )
 
 $myDir = [IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Definition)
 $binDir = "$myDir\..\bin\$Configuration"
 $tmpDir = "$myDir\..\testlogs"
+
+function playErrorSound ()
+{
+    pushd $myDir
+    $soundPath = Resolve-Path $ErrorSound
+    popd
+    $sound = New-Object System.Media.SoundPlayer
+    $sound.SoundLocation = $soundPath
+    $sound.PlaySync()
+}
 
 if (Test-Path $tmpDir)
 {
@@ -26,7 +38,7 @@ $assemblies = @(
 
 foreach ($assembly in $assemblies)
 {
-    if (!(Test-Path $assembly)) 
+    if (!(Test-Path $assembly))
     {
         Write-Warning "Did not find the test assembly $assembly."
     }
@@ -39,7 +51,7 @@ for ($i = 0; $i -lt $Cycles; $i++)
 {
     foreach ($assembly in $assemblies)
     {
-        $output = & $vstest $assembly "/TestAdapterPath:$binDir" "/TestCaseFilter:TestCategory=Concurrent"
+        $output = & $vstest $assembly "/TestAdapterPath:$binDir" # "/TestCaseFilter:TestCategory=Selected"
         $status = $LastExitCode
         if ($status -ne 0)
         {
@@ -53,12 +65,13 @@ for ($i = 0; $i -lt $Cycles; $i++)
             Write-Host "$i Passed"
         }
     }
+    if (!$NoHalt -and $errCount -gt 0) { break }
 }
 
 if ($errCount -gt 0)
 {
     Write-Warning "$errCount Failed, $successCount Passed"
-    [System.Media.SystemSounds]::Exclamation.Play();
+    playErrorSound
     exit 1
 }
 else

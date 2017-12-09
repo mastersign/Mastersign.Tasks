@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 
@@ -39,6 +40,13 @@ namespace Mastersign.Tasks
 
         public void FireEvent<T>(object sender, EventHandler<T> handler, T e) where T : EventArgs
             => Push(handler, sender, e);
+
+        [Conditional("DEBUG")]
+        public void AssertThread()
+        {
+            Debug.Assert(Thread.CurrentThread == _loopThread,
+                $"The execution does not happen on the event loop {Name}.");
+        }
 
         private void Loop()
         {

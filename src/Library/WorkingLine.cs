@@ -204,7 +204,7 @@ namespace Mastersign.Tasks
                 {
                     _workedEvent.WaitOne(timeout);
                 }
-                return _busyEvent.WaitOne(timeout);
+                return _busyEvent.WaitOne(timeout) && _eventLoop.WaitForEmpty(timeout);
             }
             catch (ObjectDisposedException)
             {

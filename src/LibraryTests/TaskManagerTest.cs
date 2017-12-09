@@ -85,9 +85,9 @@ namespace Mastersign.Tasks.Test
 
             tm.Start();
 
-            var waitForEndResult = tm.WaitForEnd(4000);
-            var waitForFinishResult = finishedEvent.WaitOne(1000);
+            var waitForFinishResult = finishedEvent.WaitOne(10000);
             finishedEvent.Close();
+            var waitForEndResult = tm.WaitForEnd(1000);
 
             afterFinish.Invoke(tm, tmMon, cache);
 
@@ -149,21 +149,22 @@ namespace Mastersign.Tasks.Test
             EventMonitor<TestTask> taskMon)
         {
             AssertState(tm, isDisposed: false, isRunning: false);
-            tmMon.History
+            tmMon.FilterHistory(ByEventName(
+                    nameof(TaskManager.IsRunningChanged),
+                    nameof(TaskManager.Started),
+                    nameof(TaskManager.Finished),
+                    nameof(TaskManager.TaskBegin),
+                    nameof(TaskManager.TaskEnd)))
                 .AssertSender(tm)
                 .AssertEventNames(
                     nameof(TaskManager.Started),
                     nameof(TaskManager.IsRunningChanged),
                     nameof(TaskManager.TaskBegin),
-                    nameof(TaskManager.BusyWorkingLinesCountChanged),
                     nameof(TaskManager.TaskEnd),
-                    nameof(TaskManager.BusyWorkingLinesCountChanged),
                     nameof(TaskManager.IsRunningChanged),
                     nameof(TaskManager.Finished));
             tmMon.FilterHistory(ByPropertyChanges<bool>(nameof(TaskManager.IsRunning)))
                 .AssertPropertyValues(true, false);
-            tmMon.FilterHistory(ByPropertyChanges<int>(nameof(TaskManager.BusyWorkingLinesCount)))
-                .AssertPropertyValues(1, 0);
 
             taskMon.History.AssertSender(taskMon.Target);
             taskMon.FilterHistory(ByPropertyChanges<TaskState>(nameof(ITask.State)))
@@ -179,8 +180,8 @@ namespace Mastersign.Tasks.Test
         public void RenderDefaultMultiQueueGraphTest()
         {
             var rand = new Random(DEF_RAND_INIT);
-            var tasks = TestTaskFactory.CreateMeshedCascade(rand, 
-                DEF_TASK_COUNT, DEF_TASK_LEVELS, DEF_TASK_MIN_DEPS, DEF_TASK_MAX_DEPS, 
+            var tasks = TestTaskFactory.CreateMeshedCascade(rand,
+                DEF_TASK_COUNT, DEF_TASK_LEVELS, DEF_TASK_MIN_DEPS, DEF_TASK_MAX_DEPS,
                 "A", "B", "C");
             TaskGraphRenderer.DisplayGraph(tasks);
         }
@@ -239,13 +240,8 @@ namespace Mastersign.Tasks.Test
             tmMon.FilterHistory(ByPropertyChanges<bool>(nameof(TaskManager.IsRunning)))
                 .AssertPropertyValues(true, false);
 
-            var possibleWorkerLineBusyCounts = Enumerable.Range(0, queueTags.Length + 1).ToArray();
-            tmMon.FilterHistory(ByPropertyChanges<int>(nameof(TaskManager.BusyWorkingLinesCount)))
-                .AssertPropertyValuesInSet(possibleWorkerLineBusyCounts)
-                .AssertPropertyValuesOccured(possibleWorkerLineBusyCounts);
-
             var labels = tgMon.Tasks.Select(t => t.Label).ToList();
-            
+
             var beginLabels = tmMon.FilterHistory(ByEventName(nameof(TaskManager.TaskBegin)))
                 .Select(e => ((TestTask)((TaskEventArgs)e.EventArgs).Task).Label).ToList();
             var unstartedLabels = labels.Except(beginLabels).ToList();
@@ -360,7 +356,7 @@ namespace Mastersign.Tasks.Test
         [TestCategory("Rendering")]
         [Ignore]
         public void RenderSequentialCancellationTest()
-            => WithTaskManager(CancellationBeforeStart, 
+            => WithTaskManager(CancellationBeforeStart,
                 (tm, tmMon, tgMon) => RenderAfterFinish(tm, tmMon, tgMon, "cancellation"),
             Tuple.Create("A", 1));
 

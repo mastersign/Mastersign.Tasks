@@ -230,9 +230,14 @@ namespace Mastersign.Tasks.Test
             Assert.AreEqual(0, wl.CurrentTasks.Length);
             Assert.IsTrue(wl.Queue.IsEmpty);
 
-            for (int i = 0; i < 3; i++) Assert.AreEqual(TaskState.Succeeded, tasks[i].State);
-            for (int i = 3; i < 6; i++) Assert.AreEqual(TaskState.Canceled, tasks[i].State);
-            for (int i = 6; i < 9; i++) Assert.AreEqual(TaskState.Obsolete, tasks[i].State);
+            Assert.AreEqual(TaskState.Succeeded, tasks.First().State);
+            Assert.AreEqual(TaskState.Obsolete, tasks.Last().State);
+            Assert.AreEqual(tasks.Length,
+                tasks.Where(t => 
+                    t.State == TaskState.Succeeded ||
+                    t.State == TaskState.Canceled || 
+                    t.State == TaskState.Obsolete)
+                .Count());
 
             wlMon.FilterHistory(ByEventName(
                 nameof(WorkingLine.BusyChanged),

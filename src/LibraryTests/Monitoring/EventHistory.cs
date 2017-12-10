@@ -39,9 +39,30 @@ namespace Mastersign.Tasks.Test.Monitors
             var expectedCount = expectedEventNames.Length;
             var caughtEventNames = EventRecords.Select(re => re.EventName).ToArray();
             var caughtCount = caughtEventNames.Length;
+
             Assert.AreEqual(expectedCount, caughtCount,
-                $"Expected number of events is {expectedCount}, but was {caughtCount}.");
-            CollectionAssert.AreEqual(caughtEventNames, expectedEventNames);
+                $"Expected number of events is {expectedCount}, but was {caughtCount}: "
+                + string.Join(", ", caughtEventNames));
+            CollectionAssert.AreEqual(caughtEventNames, expectedEventNames,
+                $"Event names did not answer to expected: "
+                + string.Join(", ", caughtEventNames));
+            return this;
+        }
+
+        public EventHistory AssertAtLeastEventNames(params string[] expectedEventNames)
+        {
+            var expectedCount = expectedEventNames.Length;
+            var caughtEventNames = EventRecords.Select(re => re.EventName).ToArray();
+            var caughtCount = caughtEventNames.Length;
+
+            Assert.IsTrue(expectedCount <= caughtCount,
+                $"At least expected number of events is {expectedCount}, but was {caughtCount}: "
+                + string.Join(", ", caughtEventNames));
+            CollectionAssert.AreEqual(
+                expectedEventNames, 
+                caughtEventNames.Take(expectedCount).ToList(),
+                $"Event names did not answer to expected: "
+                + string.Join(", ", caughtEventNames));
             return this;
         }
 

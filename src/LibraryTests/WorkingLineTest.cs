@@ -101,13 +101,19 @@ namespace Mastersign.Tasks.Test
 
             Assert.IsTrue(q.IsEmpty);
             AssertState(wl, isDisposed: false, busy: false);
-            wlMon.History
-                .AssertSender(wl)
+            wlMon.History.AssertSender(wl);
+            wlMon.FilterHistory(ByEventName(
+                    nameof(WorkingLine.TaskBegin),
+                    nameof(WorkingLine.TaskEnd)))
                 .AssertEventNames(
                     nameof(WorkingLine.TaskBegin),
+                    nameof(WorkingLine.TaskEnd));
+            wlMon.FilterHistory(ByEventName(
+                    nameof(WorkingLine.BusyChanged),
+                    nameof(WorkingLine.BusyWorkerCountChanged)))
+                .AssertEventNames(
                     nameof(WorkingLine.BusyChanged),
                     nameof(WorkingLine.BusyWorkerCountChanged),
-                    nameof(WorkingLine.TaskEnd),
                     nameof(WorkingLine.BusyWorkerCountChanged),
                     nameof(WorkingLine.BusyChanged));
             wlMon.FilterHistory(ByPropertyChanges<bool>(nameof(WorkingLine.Busy)))
@@ -135,8 +141,6 @@ namespace Mastersign.Tasks.Test
 
             Assert.IsTrue(q.IsEmpty);
             wl.Enqueue(tasks);
-            Thread.Sleep(10);
-            AssertState(wl, isDisposed: false, busy: true);
 
             wl.WaitForEnd(timeout: 10000);
 
@@ -213,10 +217,10 @@ namespace Mastersign.Tasks.Test
         private void ParallelCancellationTestCase(WorkingLine wl, EventMonitor<WorkingLine> wlMon)
         {
             var q = wl.Queue;
-            var tasks = Enumerable.Range(0, 9).Select(i => new TestTask(i.ToString())).ToArray();
+            var tasks = Enumerable.Range(0, 18).Select(i => new TestTask(i.ToString())).ToArray();
             var taskMons = tasks.Select(t => new EventMonitor<TestTask>(t)).ToArray();
 
-            var cancelTask = tasks[5];
+            var cancelTask = tasks[9];
             cancelTask.StateChanging += (s, e) =>
             {
                 if (e.NewValue == TaskState.InProgress) wl.Cancel();
@@ -225,7 +229,6 @@ namespace Mastersign.Tasks.Test
             wl.Enqueue(tasks);
 
             Assert.IsTrue(wl.WaitForEnd(timeout: 4000));
-            Thread.Sleep(100);
 
             AssertState(wl, isDisposed: false, busy: false);
             Assert.AreEqual(0, wl.CurrentTasks.Length);

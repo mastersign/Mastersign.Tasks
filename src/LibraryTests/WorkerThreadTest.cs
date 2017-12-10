@@ -174,7 +174,6 @@ namespace Mastersign.Tasks.Test
                 q.Enqueue(task);
             }
 
-            //WaitFor(() => tasks.All(t => t.State == TaskState.Succeeded), 10000);
             Assert.IsTrue(wt.WaitForEnd(timeout: 10000));
 
             Assert.IsTrue(q.IsEmpty);

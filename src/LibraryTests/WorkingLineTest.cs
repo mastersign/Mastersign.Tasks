@@ -20,6 +20,7 @@ namespace Mastersign.Tasks.Test
         [TestInitialize]
         public void Initialize()
         {
+            TestProcessControl.SetProcessAffinity();
             _watch.Start();
             TaskDebug.Stopwatch = _watch;
         }

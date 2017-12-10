@@ -11,6 +11,12 @@ namespace Mastersign.Tasks.Test
     [TestClass]
     public class EventLoopTest
     {
+        [TestInitialize]
+        public void Initialize()
+        {
+            TestProcessControl.SetProcessAffinity();
+        }
+
         [TestMethod]
         public void ConcurrentOrderTest()
         {

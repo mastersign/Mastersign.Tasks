@@ -58,6 +58,7 @@
     <Compile Include="TaskGraphMonitor.cs" />
     <Compile Include="TaskGraphRenderer.cs" />
     <Compile Include="TaskManagerTest.cs" />
+    <Compile Include="TestProcessControl.cs" />
     <Compile Include="TestTask.cs" />
     <Compile Include="TestTaskFactory.cs" />
     <Compile Include="TestWorker.cs" />

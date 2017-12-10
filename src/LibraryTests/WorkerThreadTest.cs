@@ -238,7 +238,7 @@ namespace Mastersign.Tasks.Test
                 q.Enqueue(task);
             }
 
-            Assert.IsTrue(wt.WaitForEnd(timeout: 4000));
+            Assert.IsTrue(wt.WaitForDeath(timeout: 4000));
 
             AssertState(wt, isDisposed: false, isAlive: false, busy: false);
 
